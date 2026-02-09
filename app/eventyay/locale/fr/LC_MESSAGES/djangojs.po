@@ -78,17 +78,15 @@ msgid "Search results"
 msgstr "Résultats de recherche"
 
 #: eventyay/plugins/webcheckin/static/pretixplugins/webcheckin/main.js:34
-#, fuzzy
 #| msgctxt "widget"
 #| msgid "Close ticket shop"
 msgid "No tickets found"
-msgstr "Fermer la billetterie"
+msgstr "Aucun billet trouvé"
 
 #: eventyay/plugins/webcheckin/static/pretixplugins/webcheckin/main.js:35
-#, fuzzy
 #| msgid "Check-in QR"
 msgid "Check-in result"
-msgstr "Enregistrement QR code"
+msgstr "Résultat de l'enregistrement"
 
 #: eventyay/plugins/webcheckin/static/pretixplugins/webcheckin/main.js:36
 msgid "This ticket requires special attention"
@@ -128,18 +126,16 @@ msgid "Canceled"
 msgstr "Annulé"
 
 #: eventyay/plugins/webcheckin/static/pretixplugins/webcheckin/main.js:46
-#, fuzzy
 #| msgctxt "widget"
 #| msgid "Redeem"
 msgid "Redeemed"
-msgstr "Echanger"
+msgstr "Récupéré"
 
 #: eventyay/plugins/webcheckin/static/pretixplugins/webcheckin/main.js:47
 msgid "Cancel"
 msgstr "Annuler"
 
 #: eventyay/plugins/webcheckin/static/pretixplugins/webcheckin/main.js:48
-#, fuzzy
 #| msgctxt "widget"
 #| msgid "Continue"
 msgid "Continue"
@@ -195,10 +191,9 @@ msgid "Order canceled"
 msgstr "commande annulé"
 
 #: eventyay/plugins/webcheckin/static/pretixplugins/webcheckin/main.js:62
-#, fuzzy
 #| msgid "Check-in QR"
 msgid "Checked-in Tickets"
-msgstr "Enregistrement QR code"
+msgstr "Billets enregistrés"
 
 #: eventyay/plugins/webcheckin/static/pretixplugins/webcheckin/main.js:63
 msgid "Valid Tickets"
@@ -210,7 +205,6 @@ msgstr "Actuellement à l'intérieur"
 
 #: eventyay/static/pretixbase/js/asynctask.js:43
 #: eventyay/static/pretixbase/js/asynctask.js:117
-#, fuzzy
 #| msgid ""
 #| "Your request has been queued on the server and will now be processed. "
 #| "Depending on the size of your event, this might take up to a few minutes."
@@ -218,19 +212,18 @@ msgid ""
 "Your request is currently being processed. Depending on the size of your "
 "event, this might take up to a few minutes."
 msgstr ""
-"Votre demande a été mise en attente sur le serveur et sera traitée. Selon la"
-" taille de votre événement, cela peut prendre jusqu' à quelques minutes."
+"Votre demande est actuellement en cours de traitement. Selon la taille de "
+"votre événement, cela pourrait prendre quelques minutes."
 
 #: eventyay/static/pretixbase/js/asynctask.js:48
 #: eventyay/static/pretixbase/js/asynctask.js:122
-#, fuzzy
 #| msgid ""
 #| "Your request has been queued on the server and will now be processed. "
 #| "Depending on the size of your event, this might take up to a few minutes."
 msgid "Your request has been queued on the server and will soon be processed."
 msgstr ""
-"Votre demande a été mise en attente sur le serveur et sera traitée. Selon la"
-" taille de votre événement, cela peut prendre jusqu' à quelques minutes."
+"Votre demande a été mise en file d'attente sur le serveur et sera bientôt "
+"traitée."
 
 #: eventyay/static/pretixbase/js/asynctask.js:54
 #: eventyay/static/pretixbase/js/asynctask.js:128
@@ -316,11 +309,10 @@ msgid "Product"
 msgstr "Produit"
 
 #: eventyay/static/pretixcontrol/js/ui/checkinrules.js:63
-#, fuzzy
 #| msgctxt "widget"
 #| msgid "See variations"
 msgid "Product variation"
-msgstr "Voir les variations"
+msgstr "Variation de produit"
 
 #: eventyay/static/pretixcontrol/js/ui/checkinrules.js:67
 msgid "Current date and time"
@@ -398,10 +390,9 @@ msgid "Barcode area"
 msgstr "Zone de code-barres"
 
 #: eventyay/static/pretixcontrol/js/ui/editor.js:527
-#, fuzzy
 #| msgid "Barcode area"
 msgid "Image area"
-msgstr "Zone de code-barres"
+msgstr "Zone d'image"
 
 #: eventyay/static/pretixcontrol/js/ui/editor.js:529
 msgid "Powered by eventyay"
@@ -526,24 +517,21 @@ msgid "Please enter a quantity for one of the ticket types."
 msgstr "SVP entrez une quantité pour un de vos types de billets."
 
 #: eventyay/static/pretixpresale/js/ui/main.js:304
-#, fuzzy
 #| msgid "Cart expired"
 msgid "required"
-msgstr "Panier expiré"
+msgstr "requis"
 
 #: eventyay/static/pretixpresale/js/ui/main.js:401
-#, fuzzy
 #| msgctxt "widget"
 #| msgid "from %(currency)s %(price)s"
 msgid "The organizer keeps %(currency)s %(amount)s"
-msgstr "de %(currency)s %(price)s"
+msgstr "L'organisateur conserve %(currency)s %(amount)s"
 
 #: eventyay/static/pretixpresale/js/ui/main.js:409
-#, fuzzy
 #| msgctxt "widget"
 #| msgid "from %(currency)s %(price)s"
 msgid "You get %(currency)s %(amount)s back"
-msgstr "de %(currency)s %(price)s"
+msgstr "Vous récupérez %(currency)s %(amount)s"
 
 #: eventyay/static/pretixpresale/js/ui/main.js:425
 msgid "Please enter the amount the organizer can keep."
@@ -720,12 +708,11 @@ msgid "Next week"
 msgstr "suivant semaine"
 
 #: eventyay/static/pretixpresale/js/widget/widget.js:49
-#, fuzzy
 #| msgctxt "widget"
 #| msgid "Previous month"
 msgctxt "widget"
 msgid "Previous week"
-msgstr "Moins précédent"
+msgstr "Semaine précédente"
 
 #: eventyay/static/pretixpresale/js/widget/widget.js:50
 msgctxt "widget"
@@ -820,25 +807,20 @@ msgstr "Compte"
 msgid "Logout"
 msgstr "Se déconnecter"
 
-#, fuzzy
 #~ msgid "day"
-#~ msgstr "Mai"
+#~ msgstr "jour"
 
-#, fuzzy
 #~ msgid "on"
-#~ msgstr "Aucun"
+#~ msgstr "le"
 
-#, fuzzy
 #~ msgid "months"
-#~ msgstr "Mois suivant"
+#~ msgstr "mois"
 
-#, fuzzy
 #~ msgid "month"
-#~ msgstr "Mois suivant"
+#~ msgstr "mois"
 
-#, fuzzy
 #~ msgid "the"
-#~ msgstr "Autres"
+#~ msgstr "le"
 
 #~ msgctxt "widget"
 #~ msgid ""
@@ -846,16 +828,16 @@ msgstr "Se déconnecter"
 #~ "ticketing powered by pretix</a>"
 #~ msgstr ""
 #~ "<a href=\"https://eventyay.com\" target=\"_blank\" "
-#~ "rel=\"noopener\">Billetterie en ligne propulsée par Pretix</a>"
+#~ "rel=\"noopener\">billetterie d'événements propulsée par pretix</a>"
 
 #~ msgid ""
 #~ "Your request has been queued on the server and will now be processed. If "
 #~ "this takes longer than two minutes, please contact us or go back in your "
 #~ "browser and try again."
 #~ msgstr ""
-#~ "Votre demande a été mise en attente sur le serveur et sera traitée. Si cela "
-#~ "prend plus de deux minutes, veuillez nous contacter ou retourner dans votre "
-#~ "navigateur et réessayer."
+#~ "Votre demande a été mise en file d'attente sur le serveur et sera maintenant"
+#~ " traitée. Si cela prend plus de deux minutes, veuillez nous contacter ou "
+#~ "revenir en arrière dans votre navigateur et réessayer."
 
 #~ msgid "QR Code"
-#~ msgstr "QR Code"
+#~ msgstr "Code QR"
