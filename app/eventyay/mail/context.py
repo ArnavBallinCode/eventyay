@@ -173,6 +173,13 @@ def base_placeholders(sender, **kwargs):
             _('The speaker’s edit page for the proposal'),
         ),
         SimpleFunctionalMailTextPlaceholder(
+            'orga_url',
+            ['submission'],
+            lambda submission: submission.orga_urls.base.full(),
+            'https://eventyay.example.com/orga/events/democon/submissions/124ABCD/',
+            _('URL to the proposal in the organiser backend'),
+        ),
+        SimpleFunctionalMailTextPlaceholder(
             'confirmation_link',
             ['submission'],
             lambda submission: submission.urls.confirm.full(),
