@@ -491,12 +491,12 @@ msgstr "لا"
 #: eventyay/static/pretixcontrol/js/ui/subevent.js:111
 msgid "(one more date)"
 msgid_plural "({num} more dates)"
-msgstr[0] ""
-msgstr[1] ""
-msgstr[2] ""
-msgstr[3] ""
-msgstr[4] ""
-msgstr[5] ""
+msgstr[0] "(لا توجد تواريخ إضافية)"
+msgstr[1] "(تاريخ واحد إضافي)"
+msgstr[2] "(تاريخان إضافيان)"
+msgstr[3] "({num} تواريخ إضافية)"
+msgstr[4] "({num} تاريخاً إضافياً)"
+msgstr[5] "({num} تاريخ إضافي)"
 
 #: eventyay/static/pretixpresale/js/ui/cart.js:39
 msgid "The items in your cart are no longer reserved for you."
