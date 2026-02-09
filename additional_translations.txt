@@ -1,0 +1,252 @@
+EN: On invoices from one EU country to another EU country with a different currency, display the tax amounts in both currencies.
+AR: في الفواتير من دولة في الاتحاد الأوروبي إلى دولة أخرى في الاتحاد الأوروبي بعملة مختلفة، اعرض مبالغ الضريبة بكلا العملتين.
+
+EN: If an invoice has already been paid partially, this option will add the paid and pending amount to the invoice.
+AR: إذا تم دفع الفاتورة جزئياً، سيضيف هذا الخيار المبلغ المدفوع والمبلغ المعلق إلى الفاتورة.
+
+EN: The expiration date will not be shown if the invoice is generated after the order is paid.
+AR: لن يتم عرض تاريخ انتهاء الصلاحية إذا تم إنشاء الفاتورة بعد دفع الطلب.
+
+EN: The part of your invoice number after your prefix will be filled up with leading zeros up to this length, e.g. INV-001 or INV-00001.
+AR: سيتم ملء الجزء من رقم الفاتورة بعد البادئة بأصفار في البداية حتى هذا الطول، مثل INV-001 أو INV-00001.
+
+EN: If using days, the order will expire at the end of the last day. Using minutes is more exact, but should only be used for real-time payment methods.
+AR: إذا استخدمت الأيام، سينتهي الطلب في نهاية اليوم الأخير. استخدام الدقائق أكثر دقة، لكن يجب استخدامه فقط لطرق الدفع الفورية.
+
+EN: If disabled, no date or time will be shown on the ticket shop's front page. This settings does however not affect the display in other locations.
+AR: إذا تم التعطيل، لن يتم عرض التاريخ أو الوقت على الصفحة الأمامية لمتجر التذاكر. هذا الإعداد لا يؤثر على العرض في المواقع الأخرى.
+
+EN: If you ask for a phone number, explain why you do so and what you will use the phone number for.
+AR: إذا طلبت رقم هاتف، اشرح لماذا تفعل ذلك وما الذي ستستخدم رقم الهاتف من أجله.
+
+EN: If this is off, nobody can download a ticket.
+AR: إذا كان هذا معطلاً، لن يتمكن أحد من تحميل تذكرة.
+
+EN: If turned off, ticket downloads are only possible after an order has been marked as paid.
+AR: إذا تم الإيقاف، لن يكون تحميل التذاكر ممكناً إلا بعد وضع علامة مدفوع على الطلب.
+
+EN: Do not issue ticket before email address is validated
+AR: لا تصدر التذكرة قبل التحقق من عنوان البريد الإلكتروني
+
+EN: Only allow registered accounts to get a ticket
+AR: السماح فقط للحسابات المسجلة بالحصول على تذكرة
+
+EN: If your event series has more than 50 dates in the future, only the month or week calendar can be used.
+AR: إذا كانت سلسلة الأحداث لديك تحتوي على أكثر من 50 تاريخاً في المستقبل، فيمكن استخدام تقويم الشهر أو الأسبوع فقط.
+
+EN: Hide all unavailable dates from calendar or list views
+AR: إخفاء جميع التواريخ غير المتاحة من التقويم أو طرق عرض القائمة
+
+EN: Allow attendees to modify their information after they checked in.
+AR: السماح للحضور بتعديل معلوماتهم بعد تسجيل الحضور.
+
+EN: Only allow changes if the resulting price is higher or equal than the previous price.
+AR: السماح بالتغييرات فقط إذا كان السعر الناتج أعلى من أو يساوي السعر السابق.
+
+EN: Only allow changes if the resulting price is higher than the previous price.
+AR: السماح بالتغييرات فقط إذا كان السعر الناتج أعلى من السعر السابق.
+
+EN: Only allow changes if the resulting price is equal to the previous price.
+AR: السماح بالتغييرات فقط إذا كان السعر الناتج يساوي السعر السابق.
+
+EN: Allow changes regardless of price, even if this results in a refund.
+AR: السماح بالتغييرات بغض النظر عن السعر، حتى لو أدى ذلك إلى استرداد.
+
+EN: Allow attendees to voluntarily choose a lower refund
+AR: السماح للحضور باختيار استرداد أقل طوعياً
+
+EN: With this option enabled, your attendees can choose to get a smaller refund to support you.
+AR: مع تمكين هذا الخيار، يمكن للحضور اختيار الحصول على استرداد أصغر لدعمك.
+
+EN: However, if you want us to help keep the lights on here, please consider using the slider below to request a smaller refund. Thank you!
+AR: ومع ذلك، إذا كنت تريد مساعدتنا في الحفاظ على استمرار الخدمة، يرجى النظر في استخدام المنزلق أدناه لطلب استرداد أصغر. شكراً!
+
+EN: Step size for reduction amount
+AR: حجم الخطوة لمبلغ التخفيض
+
+EN: Customers can only request a cancellation that needs to be approved by the event organizer before the order is canceled and a refund is issued.
+AR: يمكن للعملاء فقط طلب إلغاء يحتاج إلى موافقة منظم الحدث قبل إلغاء الطلب وإصدار استرداد.
+
+EN: All refunds are issued to the original payment method
+AR: يتم إصدار جميع المبالغ المستردة إلى طريقة الدفع الأصلية
+
+EN: Customers can choose between a gift card and a refund to their payment method
+AR: يمكن للعملاء الاختيار بين بطاقة هدايا واسترداد إلى طريقة الدفع الخاصة بهم
+
+EN: Tickets will never be attached if they're larger than {size} to avoid email delivery problems.
+AR: لن يتم إرفاق التذاكر أبداً إذا كانت أكبر من {size} لتجنب مشاكل تسليم البريد الإلكتروني.
+
+EN: If enabled, we will attach an .ics calendar file to order confirmation emails.
+AR: إذا تم التمكين، سنرفق ملف تقويم .ics برسائل تأكيد الطلب الإلكترونية.
+
+EN: Use header image in its full size
+AR: استخدام صورة الرأس بحجمها الكامل
+
+EN: We recommend to upload a picture at least 1170 pixels wide.
+AR: نوصي برفع صورة بعرض 1170 بكسل على الأقل.
+
+EN: Show event title even if a header image is present
+AR: إظهار عنوان الحدث حتى لو كانت صورة الرأس موجودة
+
+EN: This text will be shown below every page of your shop. Please only use this for very important messages.
+AR: سيتم عرض هذا النص أسفل كل صفحة من متجرك. يرجى استخدام هذا فقط للرسائل المهمة جداً.
+
+EN: This message will be shown after an order has been created successfully. It will be shown in additionalto the default text.
+AR: سيتم عرض هذه الرسالة بعد إنشاء طلب بنجاح. سيتم عرضها بالإضافة إلى النص الافتراضي.
+
+EN: Help text of the phone number field
+AR: نص المساعدة لحقل رقم الهاتف
+
+EN: Allow creating a new team during event creation
+AR: السماح بإنشاء فريق جديد أثناء إنشاء الحدث
+
+EN: The system generates by default {}-character long gift card codes. However, if a different length is required, it can be set here.
+AR: ينشئ النظام افتراضياً رموز بطاقات هدايا بطول {} حرفاً. ومع ذلك، إذا كان مطلوباً طول مختلف، يمكن تعيينه هنا.
+
+EN: Show button to copy user input from other products
+AR: إظهار زر لنسخ إدخال المستخدم من المنتجات الأخرى
+
+EN: Show multiple choice answers grouped in one column
+AR: إظهار إجابات الاختيار المتعدد مجمعة في عمود واحد
+
+EN: Only include orders including at least one ticket for a date on or after this date. Will also include other dates in case of mixed orders!
+AR: تضمين فقط الطلبات التي تتضمن تذكرة واحدة على الأقل لتاريخ في أو بعد هذا التاريخ. سيتضمن أيضاً تواريخ أخرى في حالة الطلبات المختلطة!
+
+EN: You can use {name} in this field.
+AR: يمكنك استخدام {name} في هذا الحقل.
+
+EN: For security reasons, please wait 5 minutes before you try again.
+AR: لأسباب أمنية، يرجى الانتظار 5 دقائق قبل المحاولة مرة أخرى.
+
+EN: Phone number (without international area code)
+AR: رقم الهاتف (بدون رمز المنطقة الدولي)
+
+EN: Does not have any effect for the validation of tickets, only for the automatic configuration of check-in devices.
+AR: ليس له أي تأثير على التحقق من التذاكر، فقط للتكوين التلقائي لأجهزة تسجيل الحضور.
+
+EN: Allow re-entering after an exit scan
+AR: السماح بإعادة الدخول بعد مسح المخرج
+
+EN: Use this option to turn off warnings if a ticket is scanned a second time.
+AR: استخدم هذا الخيار لإيقاف التحذيرات إذا تم مسح التذكرة مرة ثانية.
+
+EN: Create Video platform for Event.
+AR: إنشاء منصة فيديو للحدث.
+
+EN: You have unpaid invoices, please pay them before going live.
+AR: لديك فواتير غير مدفوعة، يرجى دفعها قبل النشر.
+
+EN: You need to fill the meta parameter "{property}".
+AR: تحتاج إلى ملء المعامل الوصفي "{property}".
+
+EN: You need to fill the billing information.
+AR: تحتاج إلى ملء معلومات الفوترة.
+
+EN: If checked, an event can only be taken live if the property is set. In event series, its always optional to set a value for individual dates
+AR: إذا تم التحديد، لا يمكن نشر الحدث إلا إذا تم تعيين الخاصية. في سلسلة الأحداث، يكون من الاختياري دائماً تعيين قيمة للتواريخ الفردية
+
+EN: If you keep this empty, any value is allowed. Otherwise, enter one possible value per line.
+AR: إذا تركت هذا فارغاً، يُسمح بأي قيمة. وإلا، أدخل قيمة محتملة واحدة لكل سطر.
+
+EN: A property can either be required or have a default value, not both.
+AR: يمكن أن تكون الخاصية مطلوبة أو أن يكون لها قيمة افتراضية، وليس كلاهما.
+
+EN: Not supported by all check-in apps for all question types.
+AR: غير مدعوم من قبل جميع تطبيقات تسجيل الحضور لجميع أنواع الأسئلة.
+
+EN: Allow to sell more tickets once people have checked out
+AR: السماح ببيع المزيد من التذاكر بمجرد أن يسجل الأشخاص المغادرة
+
+EN: The voucher "{voucher}" no longer has sufficient budget.
+AR: القسيمة "{voucher}" لم تعد لديها ميزانية كافية.
+
+EN: This will be used to generate the URL of the page. Please only use latin letters, numbers, dots and dashes. You cannot change this afterwards.
+AR: سيتم استخدام هذا لإنشاء رابط الصفحة. يرجى استخدام الأحرف اللاتينية والأرقام والنقاط والشرطات فقط. لا يمكنك تغيير هذا لاحقاً.
+
+EN: Show link on the website start page
+AR: إظهار الرابط على الصفحة الرئيسية للموقع
+
+EN: Show in header menu on all pages
+AR: إظهار في قائمة الرأس على جميع الصفحات
+
+EN: Show in website footer menu on all pages
+AR: إظهار في قائمة تذييل الموقع على جميع الصفحات
+
+EN: Require the user to acknowledge this page before the sign up is created (e.g. for terms of service).
+AR: مطالبة المستخدم بالاطلاع على هذه الصفحة قبل إنشاء التسجيل (على سبيل المثال لشروط الخدمة).
+
+EN: VAT liability rests with the service recipient.
+AR: تقع مسؤولية ضريبة القيمة المضافة على متلقي الخدمة.
+
+EN: This is the maximum monetary amount that will be discounted using this voucher across all usages.
+AR: هذا هو الحد الأقصى للمبلغ النقدي الذي سيتم خصمه باستخدام هذه القسيمة عبر جميع الاستخدامات.
+
+EN: Invalid setting for column "{header}".
+AR: إعداد غير صالح للعمود "{header}".
+
+EN: You cannot assign a position secret that already exists.
+AR: لا يمكنك تعيين سر موضع موجود بالفعل.
+
+EN: The payment method will not be shown by default but only to people who enter the shop through a special link.
+AR: لن يتم عرض طريقة الدفع افتراضياً ولكن فقط للأشخاص الذين يدخلون المتجر من خلال رابط خاص.
+
+EN: Share this link with customers who should use this payment method.
+AR: شارك هذا الرابط مع العملاء الذين يجب عليهم استخدام طريقة الدفع هذه.
+
+EN: John Doe
+AR: جون دو
+
+EN: Sample company
+AR: شركة نموذجية
+
+EN: Sesame Street 42
+AR: Sesame Street 42
+
+EN: 12345 Any City
+AR: 12345 أي مدينة
+
+EN: Atlantis
+AR: أتلانتس
+
+EN: Random (default, works with all apps in the ecosystem)
+AR: عشوائي (افتراضي، يعمل مع جميع التطبيقات في النظام البيئي)
+
+EN: All payments for this event need to be confirmed already, so no new orders can be created.
+AR: تحتاج جميع المدفوعات لهذا الحدث إلى التأكيد بالفعل، لذلك لا يمكن إنشاء طلبات جديدة.
+
+EN: Error while importing value "{value}" for column "{column}" in line "{line}": {message}
+AR: خطأ أثناء استيراد القيمة "{value}" للعمود "{column}" في السطر "{line}": {message}
+
+EN: Invalid data in row {row}: {message}
+AR: بيانات غير صالحة في الصف {row}: {message}
+
+EN: The voucher will be valid for all events under the selected organizers.
+AR: ستكون القسيمة صالحة لجميع الأحداث تحت المنظمين المحددين.
+
+EN: This will create a new Video platform for this event.
+AR: سيؤدي هذا إلى إنشاء منصة فيديو جديدة لهذا الحدث.
+
+EN: Grant access to team
+AR: منح الوصول للفريق
+
+EN: Create a new team for this event with me as the only member
+AR: إنشاء فريق جديد لهذا الحدث مع كوني العضو الوحيد
+
+EN: Ask, but do not require input
+AR: اسأل، لكن لا تطلب الإدخال
+
+EN: Ask and require input
+AR: اسأل واطلب الإدخال
+
+EN: You have configured gift cards to be valid {} years plus the year the gift card is issued in.
+AR: لقد قمت بتكوين بطاقات الهدايا لتكون صالحة {} سنة بالإضافة إلى السنة التي تم إصدار بطاقة الهدايا فيها.
+
+EN: The online shop must be selected to receive these emails.
+AR: يجب تحديد المتجر الإلكتروني لتلقي هذه الرسائل الإلكترونية.
+
+EN: The order placed and paid emails will only be send to orders from these sales channels. The online shop must be enabled.
+AR: سيتم إرسال رسائل الطلب المقدم والمدفوع فقط إلى الطلبات من قنوات المبيعات هذه. يجب تمكين المتجر الإلكتروني.
+
+EN: This email will only be send to orders from these sales channels. The online shop must be enabled.
+AR: سيتم إرسال هذا البريد الإلكتروني فقط إلى الطلبات من قنوات المبيعات هذه. يجب تمكين المتجر الإلكتروني.
+
