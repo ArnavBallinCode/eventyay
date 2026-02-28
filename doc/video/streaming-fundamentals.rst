@@ -370,7 +370,7 @@ Streaming Protocols
   An older streaming protocol for continuous audio delivery. Unlike HLS, an
   Icecast stream is a single continuous data flow, not segmented. This means it
   is **not seekable** — you can only listen to "now", not jump to a different
-  point. Relevant to the sync/latency issue (#2459).
+  point. Relevant to the sync/latency management feature.
 
 Web Technologies
 ~~~~~~~~~~~~~~~~~~
@@ -629,6 +629,6 @@ Here is the complete flow for a normal (non-interpreted) conference talk:
 
 No interpretation. No extra audio streams. No synchronization logic needed.
 
-When interpretation is added (issue #2456), steps 1–8 remain the same. The
+When interpretation is added (see :doc:`hybrid-multi-audio-player`), steps 1–8 remain the same. The
 changes happen at step 10 onward: ``MediaSource.vue`` also creates interpreter
 audio elements, adds a language selector, and starts the sync controller.

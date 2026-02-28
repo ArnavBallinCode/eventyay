@@ -1,5 +1,5 @@
-Hybrid YouTube Multi-Audio Player — Issue 2456 End-to-End Explanation
-=====================================================================
+Hybrid YouTube Multi-Audio Player — End-to-End Explanation
+===========================================================
 
 .. contents:: Table of Contents
    :depth: 3
@@ -129,8 +129,8 @@ JavaScript that continuously compares the two streams' playback positions and
 adjusts one to match the other.
 
 
-What Issue 2456 Is About (Plain English)
------------------------------------------
+What This Feature Is About (Plain English)
+-------------------------------------------
 
 The Problem in One Sentence
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -208,7 +208,7 @@ Here is how data moves through the system, from source to viewer:
   Speaker's microphone → Event's audio mixer → YouTube Live encoder
   → YouTube servers → YouTube CDN → Viewer's browser (YouTube IFrame player)
 
-**Interpreter audio path** (new — this is what issue 2456 adds)::
+**Interpreter audio path** (new — this is what the hybrid player adds)::
 
   Speaker's microphone → Room audio system → Interpreter hears the speaker
   → Interpreter speaks the translation into their microphone
@@ -1059,7 +1059,7 @@ events can use the improved hybrid player.
 Summary
 --------
 
-Issue 2456 proposes a technically challenging but achievable system. The core
+The hybrid multi-audio player is a technically challenging but achievable system. The core
 difficulty is **synchronizing two independent media streams** (YouTube video and
 external HLS audio) that travel different network paths with different delays.
 The solution combines:

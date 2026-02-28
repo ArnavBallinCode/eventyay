@@ -1,12 +1,12 @@
-Related Issues — Browser Interpreter Ingest (#2458) and Sync Management (#2459)
-================================================================================
+Related Features — Browser Interpreter Ingest and Sync Management
+==================================================================
 
 .. contents:: Table of Contents
    :depth: 3
    :local:
 
-This document explains two issues that are closely related to the Hybrid
-YouTube Multi-Audio Player (issue #2456). Both issues depend on #2456 being
+This document explains two features that are closely related to the Hybrid
+YouTube Multi-Audio Player. Both features depend on the hybrid player being
 implemented first — they extend or refine parts of the hybrid player system.
 
 For background on how streaming works and the terminology used here, see
@@ -14,18 +14,18 @@ For background on how streaming works and the terminology used here, see
 :doc:`hybrid-multi-audio-player`.
 
 
-Issue #2458 — Browser-Based Interpreter Ingest Pipeline
----------------------------------------------------------
+Feature: Browser-Based Interpreter Ingest Pipeline
+----------------------------------------------------
 
-What This Issue Is About (Plain English)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+What This Feature Is About (Plain English)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Issue #2456 (the hybrid player) assumes that interpreter audio is already
+The hybrid player feature (the hybrid player) assumes that interpreter audio is already
 available as an HLS stream URL. But where does that HLS stream actually come
 from? Someone has to capture the interpreter's voice, encode it, convert it to
 HLS, and serve it via a CDN.
 
-Issue #2458 answers this question for the simplest and most accessible scenario:
+The interpreter ingest feature answers this question for the simplest and most accessible scenario:
 **the interpreter joins from their web browser** — no special software, no OBS,
 no hardware encoder. They open a web page (the "Interpreter Portal"), grant
 microphone permission, and start speaking. Their voice travels from their
@@ -38,13 +38,13 @@ conference just needs a laptop, a microphone (or headset), and a web browser.
 Why This Matters
 ~~~~~~~~~~~~~~~~~~
 
-Without this issue, setting up interpreter audio requires technical expertise:
+Without this feature, setting up interpreter audio requires technical expertise:
 the interpreter (or a technician) must configure OBS or a hardware encoder,
 set up an RTMP connection to an ingest server, and ensure the audio encoding
 settings are correct. This is reasonable for large professional events but is
 too complex for community-driven conferences where interpreters are volunteers.
 
-Issue #2458 makes interpretation accessible to any event, regardless of
+The interpreter ingest feature makes interpretation accessible to any event, regardless of
 technical resources.
 
 The Core Problem — Echo and Audio Leakage
@@ -165,7 +165,7 @@ allow the eventyay domain to fetch them.
 **Step 7: Viewers hear the interpreter via the hybrid player**
 
 The viewer selects the interpreter's language in the hybrid player (issue
-#2456). The player loads the HLS stream URL, syncs it to the YouTube video,
+the hybrid player). The player loads the HLS stream URL, syncs it to the YouTube video,
 and the viewer hears the translation.
 
 The Latency Budget
@@ -204,7 +204,7 @@ speaker said "Good morning" to when the interpreter spoke.
 Meanwhile, the YouTube video of the speaker saying "Good morning" arrives with
 its own delay (typically 6 to 10 seconds behind real-time).
 
-This is why **offset calibration** (from issue #2456) is essential — the
+This is why **offset calibration** (from the hybrid player feature) is essential — the
 organizer must measure the actual delays for each language and configure the
 offset so the interpreter's words match the video.
 
@@ -227,7 +227,7 @@ Failure and Recovery
 
 - If the interpreter's browser tab crashes or their internet drops, the WebRTC
   connection closes. The HLS stream stops producing segments.
-- The hybrid player (issue #2456) detects the stall and falls back to original
+- The hybrid player (the hybrid player feature) detects the stall and falls back to original
   YouTube audio within 5 seconds.
 - The interpreter can reconnect by reloading the portal page and clicking
   "Start Broadcast" again.
@@ -246,24 +246,24 @@ Security
 - IP restrictions can optionally be applied for extra security.
 
 
-Issue #2459 — Synchronization and Latency Management
-------------------------------------------------------
+Feature: Synchronization and Latency Management
+--------------------------------------------------
 
-What This Issue Is About (Plain English)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+What This Feature Is About (Plain English)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Issue #2456 describes the overall hybrid player system. Issue #2459 dives deep
+The hybrid player feature describes the overall hybrid player system. The sync management feature dives deep
 into one specific (and the hardest) part: **how to keep the interpreter audio
 synchronized with the YouTube video** despite both streams having different and
 changing latencies.
 
-While #2456 describes the sync controller at a high level (measure drift,
-correct it), #2459 specifies the exact algorithms, thresholds, edge cases, and
+While the hybrid player describes the sync controller at a high level (measure drift,
+correct it), sync management specifies the exact algorithms, thresholds, edge cases, and
 configuration options needed to make synchronization work reliably in
 production.
 
-The Three Problems This Issue Solves
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The Three Problems This Feature Solves
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 **Problem 1: Startup alignment**
 
@@ -446,52 +446,53 @@ Practical Scenario Walkthrough
 5. Audio and video are aligned at the new position.
 
 
-How These Issues Depend on #2456
-----------------------------------
+How These Features Depend on the Hybrid Player
+------------------------------------------------
 
-Issue #2456 (the hybrid player) is the **parent issue** — the "epic" that
-defines the overall system. Issues #2458 and #2459 are sub-problems that must
-be solved for the full system to work:
+The hybrid player is the **parent feature** — the "epic" that
+defines the overall system. The interpreter ingest and sync management are
+sub-features that must be solved for the full system to work:
 
-- **#2456** defines the architecture, admin UI, viewer UI, and overall system
-  design. It is the "what" and "where."
-- **#2458** solves the "where does interpreter audio come from?" question for
-  the browser-based scenario. Without #2458, organizers must set up OBS/RTMP
-  manually — which works but is complex.
-- **#2459** solves the "how do we keep audio and video in sync?" question with
-  production-quality algorithms. Without #2459, the sync controller described
-  in #2456 is a high-level sketch; #2459 provides the precise thresholds,
-  initialization delay technique, and seeking rules.
+- **The hybrid player** defines the architecture, admin UI, viewer UI, and
+  overall system design. It is the "what" and "where."
+- **The interpreter ingest** solves the "where does interpreter audio come
+  from?" question for the browser-based scenario. Without it, organizers must
+  set up OBS/RTMP manually — which works but is complex.
+- **Sync management** solves the "how do we keep audio and video in sync?"
+  question with production-quality algorithms. Without it, the sync controller
+  described in the hybrid player is a high-level sketch; sync management
+  provides the precise thresholds, initialization delay technique, and seeking
+  rules.
 
 **Dependency order**:
 
-1. **First**: Implement #2456 (the hybrid player core — YouTube + external HLS
-   audio, basic sync, language selector, admin UI).
-2. **Then**: Implement #2459 (production-grade sync: initialization delay,
-   playbackRate smoothing, seek management). This refines the sync controller
-   from #2456.
-3. **Then**: Implement #2458 (browser-based interpreter portal). This provides
-   a user-friendly way to produce the HLS audio streams that #2456 consumes.
+1. **First**: Implement the hybrid player core — YouTube + external HLS
+   audio, basic sync, language selector, admin UI.
+2. **Then**: Implement sync management — production-grade sync: initialization
+   delay, playbackRate smoothing, seek management. This refines the sync
+   controller from the hybrid player.
+3. **Then**: Implement the interpreter ingest — browser-based interpreter
+   portal. This provides a user-friendly way to produce the HLS audio streams
+   that the hybrid player consumes.
 
-Issues #2458 and #2459 can be developed in parallel since they address different
-parts of the system (audio ingest vs. playback synchronization), but both
-require the foundation from #2456.
+The interpreter ingest and sync management can be developed in parallel since
+they address different parts of the system (audio ingest vs. playback
+synchronization), but both require the foundation from the hybrid player.
 
 
 Summary
 --------
 
-- **Issue #2456** (Hybrid Player): The main system — YouTube video + external
-  interpreter audio, language selector, admin configuration.
-- **Issue #2458** (Interpreter Ingest): A browser-based portal where
-  interpreters join via their browser, speak into their microphone, and their
-  audio is captured via WebRTC, converted to HLS, and delivered via CDN. Key
-  challenge: preventing echo/leakage from the interpreter's monitoring of the
-  original session.
-- **Issue #2459** (Sync Management): Production-grade synchronization — startup
-  alignment via artificial video delay, ongoing drift correction via
-  playbackRate micro-adjustments, hard resync for large drift, and seek
-  management for DVR-enabled streams.
+- **Hybrid Player**: The main system — YouTube video + external interpreter
+  audio, language selector, admin configuration.
+- **Interpreter Ingest**: A browser-based portal where interpreters join via
+  their browser, speak into their microphone, and their audio is captured via
+  WebRTC, converted to HLS, and delivered via CDN. Key challenge: preventing
+  echo/leakage from the interpreter's monitoring of the original session.
+- **Sync Management**: Production-grade synchronization — startup alignment via
+  artificial video delay, ongoing drift correction via playbackRate
+  micro-adjustments, hard resync for large drift, and seek management for
+  DVR-enabled streams.
 
-Together, these three issues deliver a complete end-to-end system for
+Together, these three features deliver a complete end-to-end system for
 multilingual live interpretation at scale.
