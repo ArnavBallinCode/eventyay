@@ -5,6 +5,130 @@ Hybrid YouTube Multi-Audio Player — Issue 2456 End-to-End Explanation
    :depth: 3
    :local:
 
+Prerequisites — Read This First
+---------------------------------
+
+If you are not familiar with how video and audio streaming works, or if any
+technical term in this document is unclear, read
+:doc:`streaming-fundamentals` first. That document explains, from scratch:
+
+- How a conference talk goes from speaker → camera → encoder → YouTube → viewer.
+- What every component does (video mixer, audio mixer, encoder, CDN, etc.).
+- A full glossary of every technical term used in this document (HLS, RTMP,
+  CDN, IFrame API, hls.js, postMessage, AAC, WebRTC, drift, offset, etc.).
+
+The rest of this document assumes you understand the normal streaming flow and
+the terminology defined there.
+
+
+Audio Streaming Basics — From Scratch
+--------------------------------------
+
+Before explaining the hybrid multi-audio player, it helps to understand how
+audio streaming works independently of video.
+
+What Is Audio Streaming?
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Audio streaming means sending audio data over the internet in real time (or
+near real time) so that a listener can hear it as it is being produced, without
+waiting for a complete file to download.
+
+There are two fundamentally different approaches:
+
+1. **Continuous streaming** (e.g., Icecast, radio-style): The server sends a
+   never-ending flow of audio data. The listener connects and hears whatever is
+   playing "right now." They cannot rewind or skip ahead. Think of it like FM
+   radio — you tune in and hear what is live.
+
+2. **Segmented streaming** (e.g., HLS): The audio is split into small files
+   called **segments** (each 2–6 seconds long). A **manifest** file lists the
+   available segments. The listener's player downloads segments one at a time
+   and plays them back-to-back. This is more complex but enables adaptive
+   quality, seeking (within the available window), and better compatibility with
+   CDNs.
+
+The hybrid player uses **HLS (segmented streaming)** for interpreter audio
+because it works well with CDNs, is seekable within a live window, and is
+already supported in the eventyay codebase via ``hls.js``.
+
+How HLS Audio-Only Streaming Works Step by Step
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Here is what happens when an interpreter's audio is delivered via HLS:
+
+1. **The interpreter speaks** into their microphone. Their voice is captured as
+   raw audio by the browser (via WebRTC) or by software like OBS.
+
+2. **The audio is encoded** — compressed using the AAC-LC codec at 48 kHz,
+   96–128 kbps. This is the same codec used by music streaming services, but at
+   a lower bitrate because speech requires less data than music.
+
+3. **The audio is segmented** — an HLS segmenter (part of the ingest server)
+   chops the continuous audio stream into 2-second chunks. Each chunk becomes a
+   ``.ts`` or ``.m4s`` file.
+
+4. **A manifest is generated** — the segmenter creates a ``.m3u8`` file (plain
+   text) that lists the URLs of the most recent segments. For live audio, this
+   manifest is updated every 2 seconds as new segments are produced.
+
+   Example manifest::
+
+     #EXTM3U
+     #EXT-X-TARGETDURATION:2
+     #EXT-X-MEDIA-SEQUENCE:1042
+     #EXTINF:2.000,
+     segment-1042.ts
+     #EXTINF:2.000,
+     segment-1043.ts
+     #EXTINF:2.000,
+     segment-1044.ts
+
+5. **A CDN distributes the segments** — the manifest and segments are served
+   via a CDN so that viewers worldwide get fast delivery. The CDN caches segments
+   (they never change) and refreshes the manifest frequently.
+
+6. **The viewer's browser downloads the manifest**, discovers the available
+   segments, downloads the most recent one, and starts playing. As each segment
+   finishes playing, the browser fetches the next one.
+
+   For a live stream, the browser also periodically re-fetches the manifest to
+   discover newly produced segments.
+
+Why Two Separate Streams Need Synchronization
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+When you watch a normal YouTube video, the video and audio are part of the
+**same stream**. They were encoded together, travel together, and arrive
+together. The YouTube player handles their synchronization internally.
+
+When you add interpreter audio as a separate HLS stream, you now have **two
+independent streams**:
+
+- **Stream A**: YouTube video + original audio (one combined stream from
+  YouTube's CDN).
+- **Stream B**: Interpreter audio (a separate HLS stream from a different CDN).
+
+These two streams:
+
+- Were produced by different sources (YouTube encoder vs. interpreter audio
+  encoder).
+- Travel through different networks (YouTube's CDN vs. the audio CDN).
+- Have different amounts of delay (YouTube might buffer 8 seconds; HLS audio
+  might buffer 5 seconds).
+- Are played by different browser components (YouTube IFrame player vs.
+  ``<audio>`` element).
+
+**The browser has no idea these two streams are related.** It plays each one
+independently. Without explicit synchronization, they drift apart — the
+interpreter might be talking about something that happened 3 seconds ago on
+the video, or 2 seconds in the future.
+
+This is why the hybrid player needs a **sync controller** — a piece of
+JavaScript that continuously compares the two streams' playback positions and
+adjusts one to match the other.
+
+
 What Issue 2456 Is About (Plain English)
 -----------------------------------------
 

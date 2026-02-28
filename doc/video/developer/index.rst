@@ -11,4 +11,6 @@ Welcome to our developer documentation! Here, we document everything around deve
    video_reference
    api/index
    performance
+   ../streaming-fundamentals
    ../hybrid-multi-audio-player
+   ../related-issues-2458-2459
