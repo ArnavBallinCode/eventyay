@@ -510,7 +510,7 @@ Scenario 1: Best Case — Good Network, Desktop Chrome
 - Conference: FOSSASIA Summit, 500 concurrent viewers.
 - YouTube video plays smoothly at 1080p.
 - Viewer selects "Mandarin" interpretation.
-- French HLS audio loads in ~1 second.
+- Mandarin HLS audio loads in ~1 second.
 - Sync loop keeps drift under 100 ms with minor ``playbackRate`` adjustments.
 - Viewer watches the entire 45-minute talk without ever noticing desync.
 - Outcome: perfect experience, indistinguishable from native multi-audio.

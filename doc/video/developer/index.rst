@@ -11,4 +11,4 @@ Welcome to our developer documentation! Here, we document everything around deve
    video_reference
    api/index
    performance
-   /video/hybrid-multi-audio-player
+   ../hybrid-multi-audio-player
