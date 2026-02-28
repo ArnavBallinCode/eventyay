@@ -13,4 +13,4 @@ Welcome to our developer documentation! Here, we document everything around deve
    performance
    ../streaming-fundamentals
    ../hybrid-multi-audio-player
-   ../related-issues-2458-2459
+   ../related-features-interpreter-ingest-sync

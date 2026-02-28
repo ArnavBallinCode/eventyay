@@ -631,7 +631,7 @@ Practical Scenarios — What Could Happen in the Real World
 Scenario 1: Best Case — Good Network, Desktop Chrome
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-- Conference: FOSSASIA Summit, 500 concurrent viewers.
+- Conference: a large tech summit, 500 concurrent viewers.
 - YouTube video plays smoothly at 1080p.
 - Viewer selects "Mandarin" interpretation.
 - Mandarin HLS audio loads in ~1 second.
