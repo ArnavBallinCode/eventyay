@@ -14,3 +14,4 @@ Welcome to our developer documentation! Here, we document everything around deve
    ../streaming-fundamentals
    ../hybrid-multi-audio-player
    ../related-features-interpreter-ingest-sync
+   ../implementation-guide-small-scale
