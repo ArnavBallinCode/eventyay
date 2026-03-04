@@ -137,27 +137,17 @@ This is a six-line Nginx ``location`` block — no special module needed.
 
 **Component 4 — Viewer-side sync controller (JavaScript)**
 
-When a viewer selects an interpretation language, the Vue 3 component:
+This is the most complex component. It must handle four distinct situations:
+normal playback, pause/resume, buffer stalls, and large drift. Each is
+explained in detail below under "How Pause, Play, and Buffers Are
+Synchronised." The high-level job is:
 
-1. Creates an ``hls.js`` instance pointing at the language's manifest URL.
-2. Mutes the YouTube IFrame player.
-3. Starts a 500 ms ``setInterval`` loop that:
-
-   a. Reads the current playback position of the HLS audio element.
-   b. Reads the current playback position of the YouTube IFrame (via the
-      IFrame API ``getCurrentTime()``).
-   c. Applies the configured offset (e.g., the interpreter audio is always
-      8 seconds behind the video due to pipeline latency — the organizer
-      sets this once during sound check).
-   d. Computes ``drift = audioPosition - (videoPosition - offset)``.
-   e. If ``|drift| < 0.3 s``: do nothing (normal).
-   f. If ``0.3 s ≤ |drift| < 2 s``: nudge ``audio.playbackRate`` to 0.98 or
-      1.02 to slowly close the gap.
-   g. If ``|drift| ≥ 2 s``: hard-jump the audio element's ``currentTime``
-      to resync immediately.
-
-4. When the viewer switches language or leaves, tears down the ``hls.js``
-   instance, unmutes YouTube, and clears the interval.
+1. Create an ``hls.js`` instance pointing at the language's manifest URL.
+2. Mute the YouTube IFrame player.
+3. Listen for YouTube player state changes (play, pause, buffering, seeking).
+4. Run a 500 ms ``setInterval`` loop that checks and corrects drift.
+5. When the viewer switches language or leaves, tear down ``hls.js``,
+   unmute YouTube, and clear all listeners.
 
 **Component 5 — Organizer offset configuration**
 
@@ -168,6 +158,211 @@ the ``StreamSchedule.config`` JSON field and served to the viewer's browser
 at page load. During the live event they can update it in real time via a
 WebSocket message if the pipeline latency changes.
 
+How Pause, Play, and Buffers Are Synchronised
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This section explains, step by step, every operation the sync controller
+performs. Read this carefully — it is the heart of the feature.
+
+**What a "buffer" is**
+
+The browser does not play audio sample by sample as it arrives over HTTP.
+Instead, ``hls.js`` downloads entire 2-second segments ahead of time and
+hands them to the browser's media engine. The browser keeps a small
+**playback buffer** — typically 10–30 seconds of decoded audio waiting in
+memory. At any moment you can inspect how much is buffered with
+``audio.buffered``, which returns time ranges of already-downloaded content.
+
+YouTube has its own internal buffer for video. You cannot inspect it
+directly, but the IFrame API tells you the player state (playing, paused,
+buffering) via ``onStateChange`` events, and the current position via
+``getCurrentTime()``.
+
+The challenge is that these two buffers are completely independent. When the
+network hiccups, the audio buffer may stall while the video keeps playing
+(or vice versa). When the viewer pauses, both buffers keep data but only
+one timeline is frozen. The sync controller must detect all of these
+situations and react correctly.
+
+**Normal playback — the 500 ms sync loop**
+
+Every 500 milliseconds the sync loop runs this logic:
+
+::
+
+    videoPos   = ytPlayer.getCurrentTime()          // e.g. 142.3 s
+    audioPos   = audio.currentTime                  // e.g. 134.1 s
+    offset     = 8.0                                // measured at sound check
+
+    idealAudioPos = videoPos - offset               // 142.3 - 8.0 = 134.3 s
+    drift         = audioPos - idealAudioPos        // 134.1 - 134.3 = -0.2 s
+
+    if |drift| < 0.3 s  → do nothing  (within tolerance)
+    if 0.3 ≤ |drift| < 2 s → nudge playbackRate to 1.02 (audio behind)
+                                               or 0.98 (audio ahead)
+    if |drift| ≥ 2 s   → hard jump: audio.currentTime = idealAudioPos
+
+The ``playbackRate`` nudge is invisible to the viewer — a 2% speed
+difference closes a 0.3 s gap in about 15 seconds without any audible
+glitch. The hard jump is reserved for situations where something has gone
+badly wrong (tab background, long buffer stall, seek) and a 15-second
+convergence time is unacceptable.
+
+**What happens when the viewer pauses YouTube**
+
+When the viewer clicks the YouTube pause button, the IFrame API fires
+``onStateChange`` with state ``YT.PlayerState.PAUSED``. The sync controller
+must respond immediately:
+
+1. **Pause the audio element.** Call ``audio.pause()``. This freezes the
+   audio timeline — ``audio.currentTime`` stops advancing.
+2. **Suspend the sync loop.** Set an ``isPaused`` flag so the 500 ms loop
+   skips the drift calculation. (If you leave the loop running, it will
+   try to keep up with a frozen ``videoPos`` and may jump the audio to an
+   incorrect position when resume happens.)
+3. **Record the pause timestamp.** Save ``Date.now()`` as ``pausedAt``.
+   This is not strictly necessary for correctness but helps with diagnostics.
+
+::
+
+    ytPlayer.addEventListener('onStateChange', (event) => {
+      if (event.data === YT.PlayerState.PAUSED) {
+        audio.pause();
+        isPaused = true;
+      }
+    });
+
+**What happens when the viewer resumes (plays) after a pause**
+
+When the viewer clicks play, the IFrame API fires ``onStateChange`` with
+state ``YT.PlayerState.PLAYING``. The sync controller must:
+
+1. **Resync before resuming.** Read the current ``videoPos``. Compute the
+   ideal audio position. Set ``audio.currentTime = videoPos - offset``.
+   This is necessary because the YouTube player may have been seeked (e.g.,
+   the viewer skipped forward) while paused, or the HLS segment at the
+   previously paused position may no longer be in the buffer if the pause
+   lasted a long time (segments expire and are deleted from the server).
+2. **Resume audio playback.** Call ``audio.play()``. The browser will
+   attempt to start at the newly set ``currentTime``. If that position is
+   already in the local buffer (the viewer paused for less than ~20 s),
+   playback begins immediately. If the buffer does not cover that position,
+   ``hls.js`` will fetch the necessary segment first (see "buffer stall"
+   below).
+3. **Clear the ``isPaused`` flag** so the sync loop resumes running.
+
+::
+
+    if (event.data === YT.PlayerState.PLAYING && isPaused) {
+      isPaused = false;
+      audio.currentTime = ytPlayer.getCurrentTime() - offset;
+      audio.play();
+    }
+
+**Buffer stall — audio is buffering while video is playing**
+
+A buffer stall happens when ``hls.js`` has not yet downloaded the segment
+that corresponds to the current ``audio.currentTime``. This can happen:
+
+- When the viewer first loads a language (no segments downloaded yet).
+- After a long pause where old segments expired on the server.
+- After a hard resync that jumps to a position not yet in the buffer.
+- On a slow network where downloads lag behind playback.
+
+When a buffer stall occurs, the ``<audio>`` element fires a ``waiting``
+event, and ``audio.readyState`` drops below ``HAVE_FUTURE_DATA``. The video
+keeps playing. The sync controller must:
+
+1. **Detect the stall.** Listen for the ``waiting`` event on the audio
+   element.
+2. **Pause YouTube.** Call ``ytPlayer.pauseVideo()``. This prevents the
+   video from running ahead of the audio during the stall. (Alternatively,
+   you can let the video keep playing and accept that a hard resync will
+   happen when audio catches up — but pausing is smoother for the viewer.)
+3. **Wait for audio to recover.** Listen for the ``playing`` event on the
+   audio element, which fires when buffering is complete and playback
+   resumes.
+4. **Resume YouTube.** Call ``ytPlayer.playVideo()``.
+5. **Re-run a resync.** Immediately compute drift and correct it, because
+   the stall may have lasted several seconds.
+
+::
+
+    audio.addEventListener('waiting', () => {
+      if (!isPaused) {
+        ytPlayer.pauseVideo();
+        isAudioStalled = true;
+      }
+    });
+
+    audio.addEventListener('playing', () => {
+      if (isAudioStalled) {
+        isAudioStalled = false;
+        ytPlayer.playVideo();
+        // Force an immediate resync rather than waiting for the next tick.
+        syncTick();
+      }
+    });
+
+Note: The reverse case — video buffering while audio is playing — is handled
+by YouTube itself. The IFrame API fires ``YT.PlayerState.BUFFERING`` and the
+video pauses internally. The audio keeps running. When the sync loop next
+runs, it will detect that the video position has stalled, compute a large
+drift, and do a hard resync on the audio side.
+
+**Seeking — viewer skips forward or backward in YouTube**
+
+Live streams are usually not seekable, so this situation is rare. If the
+event is later rebroadcast as a recording, or if the organizer has enabled
+DVR mode, the viewer can seek. When a seek happens:
+
+1. YouTube fires ``YT.PlayerState.BUFFERING`` followed by
+   ``YT.PlayerState.PLAYING`` (with a new position).
+2. The old audio position is now wildly wrong.
+3. On the next sync loop tick, drift will be very large (≥ 2 s), and the
+   hard-jump logic fires automatically.
+
+No special seek handling is needed beyond what the sync loop already does,
+but if you want instant response rather than waiting up to 500 ms for the
+next tick, you can listen for the ``onStateChange → PLAYING`` event after a
+seek and call ``syncTick()`` immediately.
+
+**Language switch — viewer changes interpretation channel**
+
+When the viewer switches from, say, Mandarin to French:
+
+1. Destroy the current ``hls.js`` instance and pause the audio element.
+2. Unmute YouTube temporarily (so the viewer hears something while the new
+   channel loads).
+3. Create a new ``hls.js`` instance for the French manifest URL.
+4. Wait for the ``canplay`` event on the new audio element.
+5. Resync: ``audio.currentTime = ytPlayer.getCurrentTime() - frenchOffset``.
+6. ``audio.play()``; mute YouTube again.
+7. Restart the sync loop with the new channel's offset.
+
+The whole switch typically takes 1–3 seconds on a normal connection (one
+segment download). During that window, YouTube audio is audible as a
+fallback — this is intentional.
+
+**Summary: the full state machine**
+
+::
+
+    States: IDLE | LOADING | PLAYING | PAUSED | STALLED | SWITCHING
+
+    IDLE → LOADING   : viewer selects a language channel
+    LOADING → PLAYING: audio 'canplay' fires; audio.play() called
+    PLAYING → PAUSED : YouTube PAUSED event → audio.pause()
+    PAUSED → PLAYING : YouTube PLAYING event → resync + audio.play()
+    PLAYING → STALLED: audio 'waiting' event → ytPlayer.pauseVideo()
+    STALLED → PLAYING: audio 'playing' event → ytPlayer.playVideo() + syncTick()
+    PLAYING → SWITCHING: viewer clicks different language → destroy + reload
+    SWITCHING → LOADING: new hls.js created
+    * → IDLE         : viewer selects "Original" or component unmounts
+
+    Sync loop runs only in PLAYING state.
+    Hard jump fires in PLAYING state when |drift| ≥ 2 s.
+
 How the Viewer Experience Feels
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -175,16 +370,23 @@ How the Viewer Experience Feels
    embedded IFrame (original audio on by default).
 2. A language selector appears (e.g., "English (original)", "Mandarin",
    "French").
-3. Viewer clicks "Mandarin." In 1–2 seconds the Mandarin interpretation
-   audio starts. YouTube video is silenced.
+3. Viewer clicks "Mandarin." YouTube audio mutes. In 1–2 seconds the
+   Mandarin interpretation audio starts. Any brief gap is covered by
+   YouTube audio remaining on until the new channel is ready.
 4. The viewer hears the interpreter's voice aligned with the speaker's lip
    movements. They may notice a brief adjustment in the first few seconds
    as the sync loop converges — after that it is imperceptible.
-5. If the interpreter disconnects, the HLS manifest goes stale. After
-   3 failed segment fetches, ``hls.js`` fires an error event. The Vue
-   component shows "Interpretation unavailable" and re-enables YouTube audio
-   automatically.
-6. If the viewer goes to another tab and comes back, the sync loop detects
+5. Viewer clicks pause on YouTube. Both YouTube and the interpreter audio
+   pause together.
+6. Viewer clicks play. The audio is resynced to the exact position before
+   resuming, so there is no jump or gap.
+7. If the viewer's network stalls, the audio stops and YouTube pauses
+   automatically to wait. Both resume together when the segment arrives.
+8. If the interpreter disconnects, the HLS manifest goes stale. After
+   3 failed segment fetches, ``hls.js`` fires a fatal error event. The Vue
+   component shows "Interpretation unavailable," re-enables YouTube audio
+   automatically, and transitions to IDLE state.
+9. If the viewer goes to another tab and comes back, the sync loop detects
    a large drift and does a hard resync within one 500 ms tick.
 
 What the Organizer Needs to Do
@@ -438,14 +640,16 @@ No extra Nginx modules are required.
 Component 4 — Viewer Sync Controller (Vue 3)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-This is the client-side component that lives inside the existing
-``stage.vue`` page. It manages the ``hls.js`` audio player and the 500 ms
-sync loop.
+This component implements the full state machine described in Part 1 —
+normal playback, pause/resume coupling, buffer stall handling, and hard
+resync on seek or background-tab return.
 
 .. code-block:: javascript
 
    // static/js/audio-sync-controller.js
    // Manages interpreter audio playback and synchronisation with YouTube video.
+   //
+   // Implements the state machine: LOADING → PLAYING ↔ PAUSED ↔ STALLED
    //
    // Usage:
    //   import { AudioSyncController } from './audio-sync-controller.js'
@@ -458,15 +662,13 @@ sync loop.
    const DRIFT_NUDGE_THRESHOLD = 0.3;    // seconds — start nudging playbackRate
    const DRIFT_HARD_SYNC_THRESHOLD = 2;  // seconds — jump immediately
    const SYNC_INTERVAL_MS = 500;
-   const SLOW_RATE = 0.98;               // slow down audio to let video catch up
-   const FAST_RATE = 1.02;               // speed up audio to catch video
+   const SLOW_RATE = 0.98;               // audio ahead → slow down
+   const FAST_RATE = 1.02;               // audio behind → speed up
 
    export class AudioSyncController {
      /**
-      * @param {YT.Player} ytPlayer  — YouTube IFrame player instance
-      * @param {number} offsetSeconds — pipeline latency: interpreter audio
-      *   arrives this many seconds after the video frame it corresponds to.
-      *   Measured during sound check and stored in StreamSchedule.config.
+      * @param {YT.Player} ytPlayer      — YouTube IFrame player instance
+      * @param {number}    offsetSeconds — pipeline latency measured at sound check
       */
      constructor(ytPlayer, offsetSeconds) {
        this.ytPlayer = ytPlayer;
@@ -474,6 +676,15 @@ sync loop.
        this.audio = new Audio();
        this.hls = null;
        this.syncTimer = null;
+
+       // State flags — see the state machine in Part 1.
+       this.isPaused = false;
+       this.isAudioStalled = false;
+
+       // Bind event handlers so we can remove them in stop().
+       this._onYtStateChange = this._onYtStateChange.bind(this);
+       this._onAudioWaiting  = this._onAudioWaiting.bind(this);
+       this._onAudioPlaying  = this._onAudioPlaying.bind(this);
      }
 
      /** Load the HLS manifest and begin playback + sync. */
@@ -495,46 +706,140 @@ sync loop.
          });
        }
 
+       // Listen for YouTube state changes (play, pause, buffering, seeking).
+       this.ytPlayer.addEventListener('onStateChange', this._onYtStateChange);
+
+       // Listen for audio buffer stalls and recoveries.
+       this.audio.addEventListener('waiting', this._onAudioWaiting);
+       this.audio.addEventListener('playing', this._onAudioPlaying);
+
        // Mute YouTube; we are taking over audio.
        this.ytPlayer.mute();
 
        await new Promise(resolve => {
          this.audio.addEventListener('canplay', resolve, { once: true });
        });
+
+       // Resync before first play to land on the correct live position.
+       this.audio.currentTime = this.ytPlayer.getCurrentTime() - this.offset;
        this.audio.play();
 
-       // Start the sync loop.
+       // Start the 500 ms sync loop.
        this.syncTimer = setInterval(() => this._syncTick(), SYNC_INTERVAL_MS);
      }
 
-     /** Stop playback, destroy hls.js, restore YouTube audio. */
+     /** Stop playback, remove all listeners, restore YouTube audio. */
      stop() {
        clearInterval(this.syncTimer);
        this.syncTimer = null;
+
+       this.audio.removeEventListener('waiting', this._onAudioWaiting);
+       this.audio.removeEventListener('playing', this._onAudioPlaying);
+       this.ytPlayer.removeEventListener('onStateChange', this._onYtStateChange);
+
        this.audio.pause();
        this.hls?.destroy();
        this.hls = null;
+
+       this.isPaused = false;
+       this.isAudioStalled = false;
+
        this.ytPlayer.unMute();
      }
 
-     /** Called every 500 ms to measure and correct drift. */
-     _syncTick() {
-       const videoPos = this.ytPlayer.getCurrentTime();   // seconds
-       const audioPos = this.audio.currentTime;           // seconds
+     // -------------------------------------------------------------------------
+     // YouTube state change handler — couples pause/play with the audio element.
+     // -------------------------------------------------------------------------
 
-       // The interpreter audio is `offset` seconds behind the video by design.
-       // Ideal audio position = videoPos - offset.
-       const drift = audioPos - (videoPos - this.offset);
+     _onYtStateChange(event) {
+       switch (event.data) {
+         case YT.PlayerState.PAUSED:
+           // Viewer (or YouTube itself) paused the video.
+           // Pause audio so both timelines freeze together.
+           this.isPaused = true;
+           this.audio.pause();
+           break;
+
+         case YT.PlayerState.PLAYING:
+           if (this.isPaused) {
+             // Viewer resumed after a deliberate pause.
+             // Resync to the current video position before resuming audio,
+             // because the viewer may have seeked while paused, or the
+             // previously buffered segment may have expired on the server.
+             this.isPaused = false;
+             this.audio.currentTime = this.ytPlayer.getCurrentTime() - this.offset;
+             this.audio.play();
+           } else {
+             // PLAYING also fires after YouTube finishes buffering following a
+             // seek (BUFFERING → PLAYING). Call _syncTick immediately so the
+             // hard resync happens now rather than waiting up to 500 ms.
+             this._syncTick();
+           }
+           break;
+
+         case YT.PlayerState.BUFFERING:
+           // YouTube is rebuffering (e.g. after a seek on a recording).
+           // The video position will stall. The sync loop will detect the
+           // resulting drift and issue a hard resync when PLAYING resumes.
+           // No action needed here, but we log it for debugging.
+           console.debug('[AudioSyncController] YouTube buffering');
+           break;
+
+         default:
+           break;
+       }
+     }
+
+     // -------------------------------------------------------------------------
+     // Audio stall handler — audio buffer ran dry while video was playing.
+     // -------------------------------------------------------------------------
+
+     _onAudioWaiting() {
+       if (!this.isPaused) {
+         this.isAudioStalled = true;
+         // Pause the video so it does not race ahead while we wait for
+         // the next segment to download.
+         this.ytPlayer.pauseVideo();
+         console.debug('[AudioSyncController] audio stalled — pausing YouTube');
+       }
+     }
+
+     _onAudioPlaying() {
+       if (this.isAudioStalled) {
+         this.isAudioStalled = false;
+         // Resume the video and immediately resync rather than waiting for
+         // the next 500 ms tick.
+         this.ytPlayer.playVideo();
+         this._syncTick();
+         console.debug('[AudioSyncController] audio recovered — resuming YouTube');
+       }
+     }
+
+     // -------------------------------------------------------------------------
+     // 500 ms sync loop — corrects position drift between audio and video.
+     // -------------------------------------------------------------------------
+
+     _syncTick() {
+       // Do not adjust while paused or stalled — positions are frozen.
+       if (this.isPaused || this.isAudioStalled) {
+         return;
+       }
+
+       const videoPos       = this.ytPlayer.getCurrentTime();  // seconds
+       const audioPos       = this.audio.currentTime;          // seconds
+       const idealAudioPos  = videoPos - this.offset;
+       const drift          = audioPos - idealAudioPos;
 
        if (Math.abs(drift) >= DRIFT_HARD_SYNC_THRESHOLD) {
-         // Large drift — jump immediately.
-         this.audio.currentTime = videoPos - this.offset;
+         // Large drift (seek, background tab, long stall) — jump immediately.
+         console.debug(`[AudioSyncController] hard resync drift=${drift.toFixed(2)}s`);
+         this.audio.currentTime = idealAudioPos;
          this.audio.playbackRate = 1.0;
        } else if (drift > DRIFT_NUDGE_THRESHOLD) {
-         // Audio is ahead — slow it down slightly.
+         // Audio is slightly ahead — slow it down to let video catch up.
          this.audio.playbackRate = SLOW_RATE;
        } else if (drift < -DRIFT_NUDGE_THRESHOLD) {
-         // Audio is behind — speed it up slightly.
+         // Audio is slightly behind — speed it up to catch the video.
          this.audio.playbackRate = FAST_RATE;
        } else {
          // Within tolerance — restore normal rate.
