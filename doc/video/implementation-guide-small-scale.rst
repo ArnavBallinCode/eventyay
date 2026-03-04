@@ -343,12 +343,15 @@ served by Nginx.
    class InterpreterTrackSink:
        """Receives audio frames from aiortc and writes PCM to FFmpeg stdin."""
 
-       def __init__(self, ffmpeg_proc: subprocess.Popen) -> None:
+       def __init__(self, ffmpeg_proc: subprocess.Popen, loop: asyncio.AbstractEventLoop) -> None:
            self.ffmpeg = ffmpeg_proc
+           self.loop = loop
 
        async def recv(self, frame):
            pcm_bytes = frame.to_ndarray().astype('float32').tobytes()
-           self.ffmpeg.stdin.write(pcm_bytes)
+           # stdin.write is blocking I/O — run it in a thread pool so we
+           # do not stall the asyncio event loop.
+           await self.loop.run_in_executor(None, self.ffmpeg.stdin.write, pcm_bytes)
 
 
    async def handle_connect(request: web.Request) -> web.Response:
@@ -357,7 +360,7 @@ served by Nginx.
 
        pc = RTCPeerConnection()
        ffmpeg = await start_ffmpeg_hls(channel)
-       sink = InterpreterTrackSink(ffmpeg)
+       sink = InterpreterTrackSink(ffmpeg, asyncio.get_event_loop())
 
        @pc.on('track')
        def on_track(track):
@@ -377,8 +380,11 @@ served by Nginx.
            try:
                frame = await track.recv()
                await sink.recv(frame)
-           except Exception:
-               logger.exception('Audio relay ended')
+           except (ConnectionError, EOFError):
+               logger.info('Audio relay ended — interpreter disconnected')
+               break
+           except OSError:
+               logger.exception('Audio relay I/O error')
                break
 
 
@@ -476,13 +482,15 @@ sync loop.
          // Safari has native HLS — use the audio element directly.
          this.audio.src = manifestUrl;
        } else {
-         this.hls = new Hls({ lowLatencyMode: false });
+         this.hls = new Hls();
          this.hls.loadSource(manifestUrl);
          this.hls.attachMedia(this.audio);
 
          this.hls.on(Hls.Events.ERROR, (_event, data) => {
            if (data.fatal) {
              this._onFatalError();
+           } else {
+             console.warn('[AudioSyncController] non-fatal HLS error', data.type, data.details);
            }
          });
        }
@@ -580,7 +588,10 @@ controller above.
        const active = ref(null);   // currently selected channel label or null
        let ctrl = null;
 
+       const errorMessage = ref(null);
+
        async function select(channel) {
+         errorMessage.value = null;
          // Stop the previous channel if any.
          if (ctrl) {
            ctrl.stop();
@@ -599,7 +610,7 @@ controller above.
 
          ctrl.audio.addEventListener('interpretation-unavailable', () => {
            active.value = null;
-           alert(`Interpretation (${channel.label}) is temporarily unavailable.`);
+           errorMessage.value = `Interpretation (${channel.label}) is temporarily unavailable.`;
          });
 
          await ctrl.start(channel.url);
@@ -607,11 +618,14 @@ controller above.
 
        onUnmounted(() => ctrl?.stop());
 
-       return { active, select };
+       return { active, errorMessage, select };
      },
 
      template: `
        <div class="language-selector">
+         <p v-if="errorMessage" class="language-selector__error" role="alert">
+           {{ errorMessage }}
+         </p>
          <button
            :class="{ active: active === null }"
            @click="select(null)"
@@ -626,10 +640,11 @@ controller above.
      `,
    };
 
-   // Bootstrap: read channel config injected by Django template context.
+   // Bootstrap: read channel config from the json_script element (see Component 7).
    const mountEl = document.getElementById('language-selector-app');
    if (mountEl) {
-     const channels = JSON.parse(mountEl.dataset.channels || '[]');
+     const dataEl = document.getElementById('interpreter-channels-data');
+     const channels = dataEl ? JSON.parse(dataEl.textContent) : [];
      const ytPlayerRef = { value: null };
 
      // Wait for the YouTube IFrame API to fire onYouTubeIframeAPIReady.
@@ -698,14 +713,15 @@ The ``config`` JSON structure looks like this:
 Component 7 — Django View: Injecting Config into the Page
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The channel config must reach the browser. The cleanest way is to render it
-as a ``data-channels`` attribute on the mount element so that no inline
-``<script>`` tag is needed (inline scripts are blocked by CSP).
+The channel config must reach the browser. Use Django's ``json_script``
+template tag, which renders the data inside a ``<script type="application/json">``
+element with all values properly escaped — safe against XSS even if
+interpreter labels contain quotes or angle brackets. No inline ``<script>``
+execution happens, so CSP is not violated.
 
 .. code-block:: python
 
    # app/eventyay/video/views.py  (relevant snippet)
-   import json
    from django.views.generic import DetailView
    from eventyay.video.models import StreamSchedule
 
@@ -716,17 +732,26 @@ as a ``data-channels`` attribute on the mount element so that no inline
 
        def get_context_data(self, **kwargs):
            ctx = super().get_context_data(**kwargs)
-           ctx['interpreter_channels_json'] = json.dumps(
-               self.object.get_interpreter_channels()
-           )
+           ctx['interpreter_channels'] = self.object.get_interpreter_channels()
            return ctx
 
 .. code-block:: html
 
-   {# In templates/eventyay/video/stage.html — the mount element #}
-   <div id="language-selector-app"
-        data-channels="{{ interpreter_channels_json }}">
-   </div>
+   {# In templates/eventyay/video/stage.html #}
+   {# json_script escapes the data and places it in a <script type="application/json"> tag. #}
+   {{ interpreter_channels|json_script:'interpreter-channels-data' }}
+   <div id='language-selector-app'></div>
+
+And update the bootstrap block in ``language-selector.js`` to read from the
+``json_script`` output element instead of a ``data-`` attribute:
+
+.. code-block:: javascript
+
+   // static/js/language-selector.js  — bootstrap section
+   const mountEl = document.getElementById('language-selector-app');
+   if (mountEl) {
+     const dataEl = document.getElementById('interpreter-channels-data');
+     const channels = dataEl ? JSON.parse(dataEl.textContent) : [];
 
 ----
 
