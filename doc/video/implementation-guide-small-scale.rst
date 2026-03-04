@@ -401,6 +401,180 @@ What the Organizer Needs to Do
    goes red, investigate or call the interpreter.
 4. Nothing special is needed to handle viewer scale — Nginx handles it.
 
+Complete Control-Flow Diagram
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The diagram below shows every path through the system in one view: the
+full hardware-to-viewer pipeline, both audio tracks, every viewer
+interaction (pause, resume, language switch, seek), every failure mode
+(buffer stall, interpreter disconnect), and the drift-correction loop.
+
+.. code-block:: mermaid
+
+   flowchart TD
+       %% ── Infrastructure layer ────────────────────────────────────────────
+       subgraph INFRA["🏗 Infrastructure (server side)"]
+           direction TB
+           MIC["🎙 Interpreter's browser\n(getUserMedia)"]
+           WEB["WebRTC signalling\n/api/interpreter/connect"]
+           INGEST["Python aiortc\ningest server"]
+           FFMPEG["FFmpeg\nencodes → AAC-LC 64 kbps\nwrites 2-second .ts segments"]
+           NGINX["Nginx\n/hls/{channel}/playlist.m3u8"]
+           ADMIN["Django admin\noffset_seconds per channel\n(StreamSchedule.config JSONField)"]
+
+           MIC -->|"getUserMedia + RTCPeerConnection"| WEB
+           WEB -->|"WebRTC audio stream"| INGEST
+           INGEST -->|"raw PCM via pipe"| FFMPEG
+           FFMPEG -->|"HLS segments + manifest"| NGINX
+           ADMIN -->|"offset value served\nin JSON at page load"| VIEWER
+       end
+
+       %% ── YouTube pipeline (parallel, independent) ─────────────────────
+       subgraph YT["▶ YouTube pipeline (existing)"]
+           direction TB
+           OBS["OBS encoder\n(video + original audio)"]
+           RTMP["RTMP → youtube.com"]
+           YTCDN["YouTube CDN\ntranscodes → HLS/DASH"]
+           IFRAME["YouTube IFrame\nin viewer's browser"]
+
+           OBS --> RTMP --> YTCDN --> IFRAME
+       end
+
+       %% ── Viewer browser (sync controller) ────────────────────────────
+       subgraph VIEWER["👤 Viewer browser (AudioSyncController)"]
+           direction TB
+           HLSJS["hls.js\ndownloads segments\nevery 2 s"]
+           AUDIO["&lt;audio&gt; element\naudio.currentTime"]
+           SYNCLOOP["⏱ 500 ms sync loop\ndrift = audio.currentTime\n      − (ytPlayer.getCurrentTime() − offset)"]
+           YTAPI["YouTube IFrame API\nonStateChange events\ngetCurrentTime()"]
+
+           HLSJS -->|"decoded PCM\nto playback buffer"| AUDIO
+           AUDIO -->|"currentTime"| SYNCLOOP
+           YTAPI -->|"getCurrentTime()"| SYNCLOOP
+       end
+
+       %% ── Normal playback ──────────────────────────────────────────────
+       NGINX -->|"HTTP – manifest + segments"| HLSJS
+       YTCDN --> IFRAME
+       IFRAME -->|"IFrame API"| YTAPI
+
+       %% ── Drift correction (inside sync loop) ─────────────────────────
+       subgraph DRIFT["🔧 Drift correction (every 500 ms)"]
+           direction LR
+           D1{"|drift| ?"}
+           D2["< 0.3 s\n→ do nothing"]
+           D3["0.3 – 2 s\n→ playbackRate 0.98 / 1.02\n(invisible to viewer)"]
+           D4["≥ 2 s\n→ hard jump\naudio.currentTime = videoPos − offset"]
+       end
+
+       SYNCLOOP --> D1
+       D1 --> D2
+       D1 --> D3
+       D1 --> D4
+
+       %% ── Pause / Resume ───────────────────────────────────────────────
+       subgraph PAUSE_RESUME["⏸ Pause / Resume coupling"]
+           direction TB
+           YT_PAUSE["YouTube PAUSED event"]
+           AP["audio.pause()\nset isPaused = true\nsuspend sync loop"]
+           YT_PLAY["YouTube PLAYING event\n(after deliberate pause)"]
+           RP["resync:\naudio.currentTime = videoPos − offset\naudio.play()\nclear isPaused flag"]
+
+           YT_PAUSE --> AP
+           YT_PLAY --> RP
+       end
+
+       YTAPI -->|"onStateChange PAUSED"| YT_PAUSE
+       YTAPI -->|"onStateChange PLAYING\n(isPaused was true)"| YT_PLAY
+
+       %% ── Buffer stall ─────────────────────────────────────────────────
+       subgraph STALL["⏳ Buffer stall (network hiccup)"]
+           direction TB
+           AW["audio 'waiting' event\n(segment not yet downloaded)"]
+           PV["ytPlayer.pauseVideo()\nset isAudioStalled = true"]
+           AR["audio 'playing' event\n(segment arrived)"]
+           RV["ytPlayer.playVideo()\nclear isAudioStalled\ncall _syncTick() immediately"]
+
+           AW --> PV
+           AR --> RV
+       end
+
+       AUDIO -->|"'waiting'"| AW
+       AUDIO -->|"'playing'"| AR
+
+       %% ── Seek ─────────────────────────────────────────────────────────
+       subgraph SEEK["⏭ Seek (DVR / recording mode)"]
+           direction LR
+           YT_BUF["YouTube BUFFERING event\n(seek in progress)"]
+           YT_PLY2["YouTube PLAYING event\n(seek complete, new position)"]
+           ST["call _syncTick() immediately\ndrift ≥ 2 s → hard jump fires"]
+
+           YT_BUF --> YT_PLY2 --> ST
+       end
+
+       YTAPI -->|"onStateChange BUFFERING"| YT_BUF
+       YTAPI -->|"onStateChange PLAYING\n(isAudioStalled was false)"| YT_PLY2
+
+       %% ── Language switch ──────────────────────────────────────────────
+       subgraph LANGSWITCH["🌐 Language switch"]
+           direction TB
+           LS1["viewer clicks\ndifferent language"]
+           LS2["destroy current hls.js\naudio.pause()\nunmute YouTube (temporary)"]
+           LS3["create new hls.js\nfor new manifest URL"]
+           LS4["wait for 'canplay'\nresync currentTime\naudio.play()\nmute YouTube again"]
+
+           LS1 --> LS2 --> LS3 --> LS4
+       end
+
+       VIEWER -->|"LanguageSelector click"| LS1
+
+       %% ── Interpreter disconnect / fallback ────────────────────────────
+       subgraph FALLBACK["🔴 Interpreter disconnect / fallback"]
+           direction TB
+           HE["hls.js fatal error\n(3 failed segment fetches)"]
+           FB["AudioSyncController.stop()\nunmute YouTube\nshow 'Interpretation unavailable'\ntransition to IDLE"]
+
+           HE --> FB
+       end
+
+       HLSJS -->|"Hls.Events.ERROR fatal=true"| HE
+
+       %% ── Multiple language channels (parallel instances) ──────────────
+       subgraph MULTI["🗣 Multiple interpreter channels (per language)"]
+           direction LR
+           CH1["Channel: Mandarin\nplaylist.m3u8\noffset_seconds = 8"]
+           CH2["Channel: French\nplaylist.m3u8\noffset_seconds = 9"]
+           CH3["Channel: Spanish\nplaylist.m3u8\noffset_seconds = 7"]
+           CTRL["AudioSyncController\n(one instance, active channel only)"]
+
+           CH1 -->|"viewer selects Mandarin"| CTRL
+           CH2 -->|"viewer selects French"| CTRL
+           CH3 -->|"viewer selects Spanish"| CTRL
+       end
+
+       NGINX -->|"serves all channels"| CH1
+       NGINX -->|"serves all channels"| CH2
+       NGINX -->|"serves all channels"| CH3
+
+       %% ── Latency budget annotation ────────────────────────────────────
+       NOTE1["📏 Typical latency budget\nMicrophone → WebRTC → FFmpeg → HLS segment\n→ Nginx → hls.js download → playback\n≈ 5 – 12 s total\n(set as offset_seconds at sound check)"]
+       INFRA -.->|"measured at sound check"| NOTE1
+
+       %% ── State machine summary ────────────────────────────────────────
+       subgraph SM["📋 Viewer-side state machine"]
+           direction LR
+           IDLE(("IDLE")) -->|"language selected"| LOADING(("LOADING"))
+           LOADING -->|"canplay"| PLAYING(("PLAYING"))
+           PLAYING -->|"YouTube PAUSED"| PAUSED(("PAUSED"))
+           PAUSED -->|"YouTube PLAYING"| PLAYING
+           PLAYING -->|"audio waiting"| STALLED2(("STALLED"))
+           STALLED2 -->|"audio playing"| PLAYING
+           PLAYING -->|"new language"| SWITCHING(("SWITCHING"))
+           SWITCHING -->|"hls.js loaded"| LOADING
+           PLAYING -->|"fatal error"| IDLE
+           PAUSED -->|"original selected"| IDLE
+       end
+
 ----
 
 Part 2 — Code
