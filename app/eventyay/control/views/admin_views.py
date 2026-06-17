@@ -16,6 +16,7 @@ from django.db.models import Count, F, Max, OuterRef, Subquery
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import redirect
 from django.utils.crypto import get_random_string
+from django.utils.crypto import constant_time_compare
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 from django.views.generic import (
@@ -98,7 +99,7 @@ class AdminBase(UserPassesTestMixin):
 
     def test_func(self):
         secret_key = self.request.GET.get("control_token")
-        if secret_key and secret_key == settings.CONTROL_SECRET:
+        if secret_key and constant_time_compare(secret_key, settings.CONTROL_SECRET):
             return True
         return self.request.user.is_staff
 
