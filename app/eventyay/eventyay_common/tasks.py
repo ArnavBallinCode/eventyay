@@ -254,8 +254,14 @@ def monthly_billing_collect(self):
         gs = GlobalSettingsObject()
         ticket_rate = Decimal(str(gs.settings.get('ticket_fee_percentage') or 2.5))
 
-        for organizer in Organizer.objects.all():
-            organizer_billing = OrganizerBillingModel.objects.filter(organizer=organizer).first()
+        # Prefetch the billing models (with invoice vouchers) and the events to eliminate N+1 queries.
+        organizers = Organizer.objects.prefetch_related(
+            'billing__invoice_voucher',
+            'events'
+        ).all()
+        for organizer in organizers:
+            billings = organizer.billing.all()
+            organizer_billing = billings[0] if billings else None
             invoice_voucher = organizer_billing.invoice_voucher if organizer_billing else None
             total_voucher_discount = Decimal('0.00')
 
