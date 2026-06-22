@@ -1,0 +1,3 @@
+## 2024-06-22 - [Avoid .first() on Prefetched QuerySets in Django]
+**Learning:** In Django, calling `.first()`, `.last()`, or `.filter(...)` directly on a related manager (e.g., `event.review_phases.filter(...).first()`) will ignore any `prefetch_related` cache and execute an immediate database query.
+**Action:** When a related manager is known to be prefetched (especially within frequently accessed properties or loops), evaluate the queryset in Python instead (e.g., using list comprehensions like `[p for p in event.review_phases.all() if p.is_active]`) to preserve the cache and avoid N+1 queries.

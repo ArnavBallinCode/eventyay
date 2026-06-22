@@ -2715,7 +2715,8 @@ class Event(
 
     @cached_property
     def active_review_phase(self):
-        if phase := self.review_phases.filter(is_active=True).first():
+        phases = [p for p in self.review_phases.all() if p.is_active]
+        if phase := (phases[0] if phases else None):
             return phase
         if not self.review_phases.all().exists():
             from eventyay.base.models import ReviewPhase
@@ -2811,7 +2812,11 @@ class Event(
         if pk := getattr(self, '_current_schedule_pk', None):
             # The event middleware prefetches the current schedule
             return self.schedules.get(pk=pk)
-        return self.schedules.order_by('-published').filter(published__isnull=False).first()
+
+        published_schedules = [s for s in self.schedules.all() if s.published is not None]
+        if not published_schedules:
+            return None
+        return max(published_schedules, key=lambda s: s.published)
 
     def get_mail_template(self, role):
         from eventyay.base.models import MailTemplate
