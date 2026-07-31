@@ -40,7 +40,7 @@ from eventyay.base.services.pricing import get_price
 from eventyay.base.services.quotas import QuotaAvailability
 from eventyay.base.services.system_questions import get_system_question_asked_required
 from eventyay.base.services.tasks import ProfiledEventTask
-from eventyay.base.settings import PERSON_NAME_SCHEMES
+from eventyay.base.settings import PERSON_NAME_SCHEMES, GlobalSettingsObject
 from eventyay.base.signals import validate_cart_addons
 from eventyay.base.templatetags.rich_text import rich_text
 from eventyay.celery_app import app
@@ -229,7 +229,7 @@ class CartManager:
         return self._seated_cache[product, subevent]
 
     def _calculate_expiry(self):
-        self._expiry = self.now_dt + timedelta(minutes=self.event.settings.get('reservation_time', as_type=int))
+        self._expiry = self.now_dt + timedelta(minutes=int(GlobalSettingsObject().settings.get('reservation_time', default='30')))
 
     def _check_presale_dates(self):
         if self.event.presale_start and self.now_dt < self.event.presale_start:
@@ -1219,7 +1219,7 @@ class CartManager:
 
                 if voucher_available_count < 1:
                     if op.voucher in self._voucher_depend_on_cart:
-                        err = err or error_messages['voucher_redeemed_cart'] % self.event.settings.reservation_time
+                        err = err or error_messages['voucher_redeemed_cart'] % GlobalSettingsObject().settings.get('reservation_time', default='30')
                     else:
                         err = err or error_messages['voucher_redeemed']
                 elif voucher_available_count < requested_count:
