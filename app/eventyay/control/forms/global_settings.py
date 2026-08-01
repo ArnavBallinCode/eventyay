@@ -26,6 +26,8 @@ class GlobalSettingsForm(SettingsForm):
             global_settings.set(EVENT_SERIES_CREATION_ENABLED, True)
         if global_settings.get('reservation_time') is None or global_settings.get('reservation_time') == '':
             global_settings.set('reservation_time', 30)
+        if global_settings.get('max_products_per_order') is None or global_settings.get('max_products_per_order') == '':
+            global_settings.set('max_products_per_order', 0)
         if global_settings.get('smtp_port') is None or global_settings.get('smtp_port') == '':
             self.obj.settings.set('smtp_port', settings.EMAIL_PORT)
         if global_settings.get('smtp_host') is None or global_settings.get('smtp_host') == '':
@@ -474,6 +476,15 @@ class GlobalSettingsForm(SettingsForm):
                         required=True,
                     ),
                 ),
+                (
+                    'max_products_per_order',
+                    forms.IntegerField(
+                        label=_('Maximum number of items per order'),
+                        help_text=_('Add-on products will be excluded from the count. Set to 0 for unlimited.'),
+                        min_value=0,
+                        required=True,
+                    ),
+                ),
             ]
         )
 
@@ -514,6 +525,7 @@ class GlobalSettingsForm(SettingsForm):
             ]),
             ('cart', _('Cart'), [
                 'reservation_time',
+                'max_products_per_order',
             ]),
             ('ticket_fee', _('Ticket fee'), [
                 'ticket_fee_percentage',

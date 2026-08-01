@@ -229,7 +229,7 @@ class CartManager:
         return self._seated_cache[product, subevent]
 
     def _calculate_expiry(self):
-        self._expiry = self.now_dt + timedelta(minutes=int(GlobalSettingsObject().settings.get('reservation_time', default='30')))
+        self._expiry = self.now_dt + timedelta(minutes=int(GlobalSettingsObject().settings.get('reservation_time', default=30) or 30))
 
     def _check_presale_dates(self):
         if self.event.presale_start and self.now_dt < self.event.presale_start:
@@ -324,9 +324,10 @@ class CartManager:
             cartsize -= len(
                 [1 for op in self._operations if isinstance(op, self.RemoveOperation) if not op.position.addon_to_id]
             )
-            if cartsize > int(self.event.settings.max_products_per_order):
+            max_products = int(GlobalSettingsObject().settings.get('max_products_per_order', default=0) or 0)
+            if max_products > 0 and cartsize > max_products:
                 # TODO: i18n plurals
-                raise CartError(_(error_messages['max_products']) % (self.event.settings.max_products_per_order,))
+                raise CartError(_(error_messages['max_products']) % (max_products,))
 
     def _check_product_constraints(self, op, current_ops=[]):
         if isinstance(op, (self.AddOperation, self.ExtendOperation)):

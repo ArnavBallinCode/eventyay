@@ -646,7 +646,7 @@ class RedeemView(NoSearchIndexViewMixin, EventViewMixin, TemplateView):
                 )
                 v_avail = self.voucher.max_usages - self.voucher.redeemed - redeemed_in_carts.count()
                 if v_avail < 1 and not err:
-                    err = error_messages['voucher_redeemed_cart'] % GlobalSettingsObject().settings.get('reservation_time', default='30')
+                    err = error_messages['voucher_redeemed_cart'] % (GlobalSettingsObject().settings.get('reservation_time', default=30) or 30)
             except Voucher.DoesNotExist:
                 if self.request.event.organizer.accepted_gift_cards.filter(
                     secret__iexact=request.GET.get('voucher')

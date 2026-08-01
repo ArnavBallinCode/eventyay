@@ -79,7 +79,7 @@ class CartPositionCreateSerializer(I18nAwareModelSerializer):
 
         if not validated_data.get('expires'):
             validated_data['expires'] = now() + timedelta(
-                minutes=int(GlobalSettingsObject().settings.get('reservation_time', default='30'))
+                minutes=int(GlobalSettingsObject().settings.get('reservation_time', default=30) or 30)
             )
 
         with self.context['event'].lock():

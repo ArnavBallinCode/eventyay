@@ -898,7 +898,7 @@ def _check_positions(
                     break
 
         if quota_ok:
-            cp.expires = now_dt + timedelta(minutes=int(GlobalSettingsObject().settings.get('reservation_time', default='30')))
+            cp.expires = now_dt + timedelta(minutes=int(GlobalSettingsObject().settings.get('reservation_time', default=30) or 30))
             cp.save()
         else:
             # Sorry, can't let you keep that!
