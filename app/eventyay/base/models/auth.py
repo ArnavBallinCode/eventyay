@@ -263,6 +263,7 @@ class User(
     )
     avatar_thumbnail = models.ImageField(null=True, blank=True, upload_to='avatars/')
     avatar_thumbnail_tiny = models.ImageField(null=True, blank=True, upload_to='avatars/')
+    avatar_thumbnail_list = models.ImageField(null=True, blank=True, upload_to='avatars/')
     get_gravatar = models.BooleanField(
         default=False,
         verbose_name=_('Retrieve profile picture via gravatar'),
@@ -935,7 +936,10 @@ the eventyay team"""
         if not thumbnail:
             image = self.avatar
         else:
-            image = self.avatar_thumbnail_tiny if thumbnail == 'tiny' else self.avatar_thumbnail
+            image = {
+                'tiny': self.avatar_thumbnail_tiny,
+                'list': self.avatar_thumbnail_list,
+            }.get(thumbnail, self.avatar_thumbnail)
             if not image:
                 image = create_thumbnail(self.avatar, thumbnail)
 

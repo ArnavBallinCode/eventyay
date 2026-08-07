@@ -1,6 +1,4 @@
 {% extends "agenda/base.html" %}
-{% load compress %}
-{% load vite %}
 {% load html_signal %}
 {% load i18n %}
 {% load static %}
@@ -13,14 +11,50 @@
 
 {% block agenda_content %}
 {% html_signal "eventyay.agenda.signals.html_above_speakers_list" sender=request.event request=request %}
-<div>
-    {% if schedule_json %}
-    <script id="pretalx-schedule-data" type="application/json">{{ schedule_json|safe }}</script>
+<div class="speakers-overview">
+    <form class="speakers-search" method="get" role="search">
+        <label class="sr-only" for="speaker-search-input">{% translate 'Search speakers' %}</label>
+        <input
+            id="speaker-search-input"
+            type="search"
+            name="q"
+            value="{{ search_query }}"
+            placeholder="{% translate 'Search speakers by name' %}"
+            autocomplete="off">
+        <button type="submit" class="btn btn-primary">{% translate 'Search' %}</button>
+    </form>
+
+    {% if speakers_cards %}
+    <div class="speakers-grid" data-speakers-grid>
+        {% include "agenda/includes/speaker_cards.html" %}
+    </div>
+
+    {% if is_paginated and page_obj.has_next %}
+    <div class="speakers-loadmore">
+        <button
+            type="button"
+            class="btn btn-default"
+            data-speakers-loadmore
+            data-url="{{ request.path }}"
+            data-query="{{ search_query }}"
+            data-next-page="{{ page_obj.next_page_number }}"
+            data-total-pages="{{ paginator.num_pages }}">
+            {% translate 'Load more speakers' %}
+        </button>
+        <noscript>
+            <nav class="speakers-pagination" aria-label="{% translate 'Speaker pages' %}">
+                <a href="?{{ pagination_querystring }}page={{ page_obj.next_page_number }}">
+                    {% translate 'Next page' %}
+                </a>
+            </nav>
+        </noscript>
+    </div>
     {% endif %}
-    {% vite_app_scripts 'schedule' 'src/main-wc.js' fallback='schedule/pretalx-schedule.js' %}
-    {% with event_tz=request.event.settings.timezone|default:request.event.timezone %}
-    <pretalx-schedule event-url="{{ request.event.urls.base }}" locale="{{ request.LANGUAGE_CODE }}" view="speakers" {% if schedule_version %}version="{{ schedule_version }}"{% endif %} style="--pretalx-clr-primary: {{ request.event.visible_primary_color }}"></pretalx-schedule>
-    {% endwith %}
+
+    <script type="module" src="{% static 'agenda/js/speakers.js' %}"></script>
+    {% else %}
+    <p class="speakers-empty">{% translate 'No speakers found.' %}</p>
+    {% endif %}
 </div>
 {% html_signal "eventyay.agenda.signals.html_below_speakers_list" sender=request.event request=request %}
 {% endblock agenda_content %}

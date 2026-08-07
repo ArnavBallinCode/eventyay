@@ -110,6 +110,57 @@ def speaker_profile_display_order():
     )
 
 
+def build_speaker_card_avatar(user, event):
+    """Return responsive avatar variants for a speaker card, or ``None``.
+
+    Uploaded avatars expose tiny/list/default thumbnails so the browser can pick
+    an appropriately sized image via ``srcset``. External avatars fall back to a
+    single URL.
+    """
+    if user.avatar and user.avatar != 'False':
+        tiny = user.get_avatar_url(event=event, thumbnail='tiny')
+        listing = user.get_avatar_url(event=event, thumbnail='list')
+        default = user.get_avatar_url(event=event, thumbnail='default')
+        srcset = ', '.join(
+            part
+            for part in (
+                f'{tiny} 64w' if tiny else '',
+                f'{listing} 192w' if listing else '',
+                f'{default} 460w' if default else '',
+            )
+            if part
+        )
+        return {'src': listing or default or tiny, 'srcset': srcset}
+    external = user.get_avatar_url(event=event)
+    if not external:
+        return None
+    return {'src': external, 'srcset': ''}
+
+
+def build_speaker_cards(profiles, event):
+    """Build lightweight per-speaker data for the public speakers overview.
+
+    Only the fields shown on a speaker card are included - no biographies,
+    session descriptions, or unused avatar variants - so the overview payload
+    does not grow with the full schedule.
+    """
+    include_avatar = bool(event.cfp.request_avatar and event.cfp.public_avatar)
+    cards = []
+    for profile in profiles:
+        user = profile.user
+        card = {
+            'code': user.code,
+            'name': user.get_display_name(),
+            'profile_url': profile.urls.public,
+            'is_featured': bool(profile.is_featured),
+            'avatar': None,
+        }
+        if include_avatar and user.has_avatar:
+            card['avatar'] = build_speaker_card_avatar(user, event)
+        cards.append(card)
+    return cards
+
+
 def get_public_featured_speaker_profiles(event):
     """Return featured speaker profiles in public display order."""
     return list(
@@ -879,24 +930,6 @@ def build_speaker_schedule_json(request: HttpRequest, speaker_code: str) -> str:
     if not speaker_may_show_pending_sessions(request.user, event, speaker_code):
         return '{}'
     return build_pending_speaker_schedule_json(event, request.user, speaker_code, featured)
-
-
-def build_speakers_list_schedule_json(request: HttpRequest) -> str:
-    """Build inline schedule JSON for the public speakers overview."""
-    event = request.event
-    user = request.user
-    if not can_list_released_schedule_speakers(user, event):
-        return ''
-    schedule = event.current_schedule
-    featured = include_public_featured_speaker_metadata(user, event)
-    with scope(event=event):
-        data = schedule.build_data(
-            all_talks=not schedule.version,
-            include_featured_speaker_metadata=featured,
-        )
-    if not data:
-        return ''
-    return serialize_widget_schedule_data(data, event=event)
 
 
 def warm_scoped_schedule_caches(schedule, *, featured):

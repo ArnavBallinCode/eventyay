@@ -111,9 +111,13 @@ def test_cannot_see_no_schedule(client, user, event, featured):
 @pytest.mark.django_db
 @pytest.mark.usefixtures('slot', 'other_slot')
 def test_speaker_list(client, event, speaker):
+    with scope(event=event):
+        event.talks_published = True
+        event.save(update_fields=['talks_published'])
     url = event.urls.speakers
     response = client.get(url, follow=True)
     assert response.status_code == 200
+    # Speaker cards are rendered server-side, without embedding the full schedule payload.
     assert speaker.fullname in response.text
     assert 'pretalx-schedule-data' not in response.text
 
