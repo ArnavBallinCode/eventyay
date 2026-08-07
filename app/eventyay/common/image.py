@@ -15,19 +15,8 @@ logger = logging.getLogger(__name__)
 
 THUMBNAIL_SIZES = {
     'tiny': (64, 64),
-    'list': (192, 192),
     'default': (460, 460),
 }
-
-# Thumbnail sizes that should be delivered as WebP regardless of the source
-# format. WebP compresses photographic images far better than PNG/JPEG and
-# supports transparency, so it is a safe replacement for the speaker-directory
-# thumbnails, which are the largest driver of transfer size on overview pages.
-THUMBNAIL_FORMATS = {
-    'list': 'WEBP',
-}
-
-THUMBNAIL_WEBP_QUALITY = 80
 
 gravatar_csp = partial(
     csp_update,
@@ -133,32 +122,18 @@ def create_thumbnail(image, size):
         return
 
     try:
-        img = Image.open(image, formats=('PNG', 'JPEG', 'GIF', 'WEBP'))
+        img = Image.open(image, formats=('PNG', 'JPEG', 'GIF'))
         img.load()
     except Exception:
         logger.exception("Thumbnail creation failed")
 
         return None
     img.thumbnail(THUMBNAIL_SIZES[size], resample=Resampling.LANCZOS)
-
-    target_format = THUMBNAIL_FORMATS.get(size) or img.format or 'PNG'
-    save_kwargs = {}
-    if target_format == 'WEBP':
-        # Flatten palette/other modes that WebP cannot store directly, and drop
-        # any alpha channel for opaque photos so the file stays small.
-        if img.mode not in ('RGB', 'RGBA'):
-            img = img.convert('RGBA' if 'A' in img.getbands() else 'RGB')
-        suffix = '.webp'
-        save_kwargs = {'quality': THUMBNAIL_WEBP_QUALITY, 'method': 6}
-    else:
-        suffix = Path(image.name).suffix
-
     thumbnail_field = getattr(image.instance, thumbnail_field_name)
-    thumbnail_name = Path(image.name).stem + f'_thumbnail_{size}' + suffix
-    # Write the image to a BytesIO object. A fresh save strips EXIF/ICC metadata
-    # from the original upload, keeping delivered thumbnails small.
+    thumbnail_name = Path(image.name).stem + f'_thumbnail_{size}' + Path(image.name).suffix
+    # Write the image to a BytesIO object
     img_byte_array = BytesIO()
-    img.save(img_byte_array, format=target_format, **save_kwargs)
+    img.save(img_byte_array, format=img.format)
     thumbnail_field.save(
         thumbnail_name,
         ContentFile(img_byte_array.getvalue()),

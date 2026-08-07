@@ -119,22 +119,12 @@ def build_speaker_card_avatar(user, event):
     """
     if user.avatar and user.avatar != 'False':
         tiny = user.get_avatar_url(event=event, thumbnail='tiny')
-        listing = user.get_avatar_url(event=event, thumbnail='list')
         default = user.get_avatar_url(event=event, thumbnail='default')
-        srcset = ', '.join(
-            part
-            for part in (
-                f'{tiny} 64w' if tiny else '',
-                f'{listing} 192w' if listing else '',
-                f'{default} 460w' if default else '',
-            )
-            if part
-        )
-        return {'src': listing or default or tiny, 'srcset': srcset}
+        return default or tiny
     external = user.get_avatar_url(event=event)
     if not external:
         return None
-    return {'src': external, 'srcset': ''}
+    return external
 
 
 def build_speaker_cards(profiles, event):
@@ -146,14 +136,33 @@ def build_speaker_cards(profiles, event):
     """
     include_avatar = bool(event.cfp.request_avatar and event.cfp.public_avatar)
     cards = []
+    
+    # We need to compute sessions for each speaker.
+    # We can fetch talks from the schedule.
+    schedule = event.current_schedule
+    
+    talks = []
+    if schedule:
+        talks = list(schedule.talks.all().select_related('submission', 'room', 'submission__track').prefetch_related('submission__speakers'))
+    
     for profile in profiles:
         user = profile.user
+        
+        # find sessions for this speaker
+        speaker_sessions = []
+        for talk in talks:
+            if user in talk.submission.speakers.all():
+                speaker_sessions.append({
+                    'id': talk.submission.code,
+                    'title': talk.submission.title,
+                })
+        
         card = {
             'code': user.code,
             'name': user.get_display_name(),
-            'profile_url': profile.urls.public,
             'is_featured': bool(profile.is_featured),
             'avatar': None,
+            'sessions': speaker_sessions,
         }
         if include_avatar and user.has_avatar:
             card['avatar'] = build_speaker_card_avatar(user, event)
@@ -930,6 +939,24 @@ def build_speaker_schedule_json(request: HttpRequest, speaker_code: str) -> str:
     if not speaker_may_show_pending_sessions(request.user, event, speaker_code):
         return '{}'
     return build_pending_speaker_schedule_json(event, request.user, speaker_code, featured)
+
+
+def build_speakers_list_schedule_json(request: HttpRequest) -> str:
+    """Build inline schedule JSON for the public speakers overview."""
+    event = request.event
+    user = request.user
+    if not can_list_released_schedule_speakers(user, event):
+        return ''
+    schedule = event.current_schedule
+    featured = include_public_featured_speaker_metadata(user, event)
+    with scope(event=event):
+        data = schedule.build_data(
+            all_talks=not schedule.version,
+            include_featured_speaker_metadata=featured,
+        )
+    if not data:
+        return ''
+    return serialize_widget_schedule_data(data, event=event)
 
 
 def warm_scoped_schedule_caches(schedule, *, featured):

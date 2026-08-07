@@ -280,12 +280,10 @@ class SpeakerProfileForm(
                     # Clear thumbnails when removing avatar
                     self.user.avatar_thumbnail = None
                     self.user.avatar_thumbnail_tiny = None
-                    self.user.avatar_thumbnail_list = None
                 elif value:
                     # Clear old thumbnails before assigning new avatar
                     self.user.avatar_thumbnail = None
                     self.user.avatar_thumbnail_tiny = None
-                    self.user.avatar_thumbnail_list = None
                     self.user.avatar = value
             elif value is None and user_attribute == 'get_gravatar':
                 # Only reset get_gravatar if the field was actually present on
@@ -300,7 +298,7 @@ class SpeakerProfileForm(
             # Add thumbnail fields to update_fields when avatar changes
             update_fields = [user_attribute]
             if user_attribute == 'avatar':
-                update_fields.extend(['avatar_thumbnail', 'avatar_thumbnail_tiny', 'avatar_thumbnail_list'])
+                update_fields.extend(['avatar_thumbnail', 'avatar_thumbnail_tiny'])
             self.user.save(update_fields=update_fields)
 
         self.instance.event = self.event

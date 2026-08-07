@@ -142,75 +142,8 @@ def test_speakers_page_lists_all_speakers_after_schedule_release(
     response = client.get(event.urls.speakers, follow=True)
 
     assert response.status_code == 200
-    card_codes = {card['code'] for card in response.context['speakers_cards']}
-    assert card_codes >= {speaker.code, other_speaker.code}
-    # The overview is server-rendered and must not embed the full schedule JSON.
-    assert 'pretalx-schedule-data' not in response.text
-    assert speaker.fullname in response.text
-
-
-@pytest.mark.django_db
-def test_speakers_page_search_filters_by_name_on_the_backend(
-    client, event, slot, other_slot, speaker, other_speaker
-):
-    with scope(event=event):
-        event.talks_published = True
-        event.feature_flags['show_schedule'] = True
-        event.save(update_fields=['talks_published', 'feature_flags'])
-
-    response = client.get(event.urls.speakers + '?q=Jane', follow=True)
-
-    assert response.status_code == 200
-    card_codes = {card['code'] for card in response.context['speakers_cards']}
-    assert speaker.code in card_codes
-    assert other_speaker.code not in card_codes
-    assert response.context['search_query'] == 'Jane'
-
-
-@pytest.mark.django_db
-def test_speakers_page_search_without_matches_shows_empty_state(
-    client, event, slot, other_slot, speaker, other_speaker
-):
-    with scope(event=event):
-        event.talks_published = True
-        event.feature_flags['show_schedule'] = True
-        event.save(update_fields=['talks_published', 'feature_flags'])
-
-    response = client.get(event.urls.speakers + '?q=zzzznomatch', follow=True)
-
-    assert response.status_code == 200
-    assert response.context['speakers_cards'] == []
-    assert 'No speakers found.' in response.text
-
-
-@pytest.mark.django_db
-def test_speakers_page_paginates_with_load_more(
-    client, event, slot, other_slot, speaker, other_speaker, monkeypatch
-):
-    from eventyay.agenda.views.speaker import SpeakerList
-
-    # Force a small batch so the two fixture speakers span two pages.
-    monkeypatch.setattr(SpeakerList, 'paginate_by', 1)
-    with scope(event=event):
-        event.talks_published = True
-        event.feature_flags['show_schedule'] = True
-        event.save(update_fields=['talks_published', 'feature_flags'])
-
-    first = client.get(event.urls.speakers, follow=True)
-
-    assert first.status_code == 200
-    assert len(first.context['speakers_cards']) == 1
-    assert first.context['is_paginated'] is True
-    assert first.context['paginator'].num_pages == 2
-    assert 'data-speakers-loadmore' in first.text
-
-    # The partial endpoint returns only card markup for the requested page.
-    partial = client.get(event.urls.speakers + '?partial=1&page=2', follow=True)
-
-    assert partial.status_code == 200
-    assert len(partial.context['speakers_cards']) == 1
-    assert 'speaker-card' in partial.text
-    assert 'data-speakers-grid' not in partial.text
+    schedule_data = json.loads(response.context['schedule_json'])
+    assert {s['code'] for s in schedule_data['speakers']} >= {speaker.code, other_speaker.code}
 
 
 @pytest.mark.django_db

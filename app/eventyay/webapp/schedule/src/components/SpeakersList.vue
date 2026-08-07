@@ -21,33 +21,6 @@
 			span.btn-label {{ t.filters }}
 			span.mobile-toggle-badge(v-if="hasActiveFilters")
 		.toolbar-filters(:class="{'open': mobileFiltersOpen}", ref="mobileFiltersPanel")
-			.filter-group(v-if="availableLanguages.length > 1")
-				.dropdown-wrapper
-					button.filter-btn(@click="toggleDropdown('language')", :class="{'active': selectedLanguages.length}")
-						svg.filter-icon(viewBox="0 0 24 24", fill="currentColor", aria-hidden="true")
-							path(d="M12.87 15.07l-2.54-2.51c.86-1.02 1.52-2.12 1.99-3.28H14V7h-4V5H8v2H4v2h7.17c-.39 1.17-.96 2.27-1.7 3.25-.48-.63-.9-1.31-1.25-2.03H6.1c.5 1.09 1.17 2.14 2 3.11L3 20h2l5-5 3.11 3.11.76-3.04z")
-							path(d="M15.5 11h-2L9 22h2l1-3h4l1 3h2l-3.5-11zm-2.3 6 .8-2.8.8 2.8h-1.6z")
-						span.btn-label {{ t.language }}
-						span.filter-dot(v-if="selectedLanguages.length")
-					.dropdown-menu(v-if="openDropdown === 'language'")
-						label.dropdown-item(v-for="lang in availableLanguages", :key="lang")
-							input(type="checkbox", :value="lang", v-model="selectedLanguages")
-							| {{ formatLanguageLabel(lang) }}
-			.filter-group(v-if="availableTracks.length > 1")
-				.dropdown-wrapper
-					button.filter-btn(@click="toggleDropdown('track')", :class="{'active': selectedTracks.length}")
-						svg.filter-icon(viewBox="0 0 24 24", fill="none", stroke="currentColor", stroke-width="2")
-							path(d="M9.568 3H5.25A2.25 2.25 0 0 0 3 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 0 0 5.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 0 0 9.568 3Z")
-							path(d="M6 6h.008v.008H6V6Z")
-						span.btn-label {{ t.track }}
-						span.filter-dot(v-if="selectedTracks.length")
-					.dropdown-menu(v-if="openDropdown === 'track'")
-						label.dropdown-item(v-for="track in availableTracks", :key="track.id")
-							input(type="checkbox", :value="track.id", v-model="selectedTracks")
-							span.track-color(v-if="track.color", :style="{'background-color': track.color}")
-							| {{ getLocalizedString(track.name) }}
-						.dropdown-actions(v-if="selectedTracks.length")
-							button.clear-btn(@click="selectedTracks = []") {{ t.clear }}
 			button.filter-btn.clear-filters-btn(
 				v-if="hasActiveFilters",
 				:title="t.reset_all_filters",
@@ -90,8 +63,9 @@
 						rect(x="14" y="14" width="7" height="7")
 	.speakers-grid(v-if="filteredSpeakers.length && activeViewMode === 'list'")
 		a.speaker-card(
-			v-for="speaker in filteredSpeakers",
-			:key="speaker.code",
+			v-for="(speaker, idx) in filteredSpeakers",
+			:key="speaker.code || idx",
+			:ref="el => { if(el) speakerCards[idx] = el }",
 			:href="getSpeakerLink(speaker)",
 			@click="onSpeakerClick($event, speaker)"
 		)
@@ -110,9 +84,9 @@
 				.biography(v-if="speaker.biography")
 					markdown-content(:markdown="speaker.biography")
 				.sessions-list(v-if="speaker.sessions && speaker.sessions.length")
-					span.session-title(v-for="(session, idx) in speaker.sessions", :key="session.id")
+					span.session-title(v-for="(session, s_idx) in speaker.sessions", :key="session.id || s_idx")
 						| {{ getLocalizedString(session.title) }}
-						span.separator(v-if="idx < speaker.sessions.length - 1") ,&nbsp;
+						span.separator(v-if="s_idx < speaker.sessions.length - 1") ,&nbsp;
 	.speakers-details(v-else-if="filteredSpeakers.length && activeViewMode === 'details'")
 		.featured-speakers-grid
 			.featured-speaker-column(v-for="speaker in filteredSpeakers", :key="speaker.code")
@@ -151,6 +125,8 @@
 							a(:href="getSpeakerLink(speaker)", @click="onSpeakerClick($event, speaker)") {{ t.view_profile }}
 	.empty(v-else)
 		| {{ t.no_speakers_found }}
+	.loading(v-if="isLoadingMore")
+		| Loading...
 	.backdrop(v-if="openDropdown || mobileFiltersOpen || mobileMoreOpen", @click="closeToolbarOverlays")
 </template>
 
@@ -221,8 +197,10 @@ export default {
 		return {
 			getLocalizedString,
 			searchQuery: '',
-			selectedLanguages: [],
-			selectedTracks: [],
+			speakersFromApi: [],
+			nextPageUrl: null,
+			isLoadingMore: false,
+			searchTimeout: null,
 			sortBy: 'featured',
 			openDropdown: null,
 			activeViewMode: this.viewMode,
@@ -235,6 +213,18 @@ export default {
 		if (!this.featuredSortAvailable && this.sortBy === 'featured') {
 			this.sortBy = 'a-z'
 		}
+		this.fetchSpeakers()
+		
+		this.observer = new IntersectionObserver((entries) => {
+			if (entries[0].isIntersecting && this.nextPageUrl) {
+				this.fetchSpeakers(this.nextPageUrl, true)
+			}
+		})
+		setTimeout(() => {
+			if (this.$el.querySelector('.loading')) {
+				this.observer.observe(this.$el.querySelector('.loading'))
+			}
+		}, 1000)
 	},
 	watch: {
 		featuredSortAvailable(available) {
@@ -242,9 +232,16 @@ export default {
 				this.sortBy = 'a-z'
 			}
 		},
+		searchQuery() {
+			if (this.searchTimeout) clearTimeout(this.searchTimeout)
+			this.searchTimeout = setTimeout(() => {
+				this.fetchSpeakers()
+			}, 300)
+		}
 	},
 	beforeUnmount() {
 		document.removeEventListener('click', this.onOutsideClick, true)
+		if (this.observer) this.observer.disconnect()
 	},
 	computed: {
 		speakerCodeFromAny() {
@@ -277,7 +274,7 @@ export default {
 			}
 		},
 		hasActiveFilters() {
-			return Boolean(this.searchQuery) || this.selectedLanguages.length > 0 || this.selectedTracks.length > 0
+			return Boolean(this.searchQuery)
 		},
 		sortOptions() {
 			const options = [
@@ -299,114 +296,8 @@ export default {
 			const opt = this.sortOptions.find(o => o.value === this.sortBy)
 			return opt ? opt.label : this.t.a_to_z
 		},
-		rawTalks() {
-			if (!this.scheduleData) return []
-			return this.scheduleData.schedule?.talks || []
-		},
-		resolvedSessions() {
-			if (!this.scheduleData) return []
-			return this.scheduleData.sessions || []
-		},
-		availableTracks() {
-			if (!this.scheduleData) return []
-			return this.scheduleData.schedule?.tracks || []
-		},
-		availableLanguages() {
-			const locales = (this.scheduleData?.schedule?.content_locales || []).filter(Boolean)
-			if (locales.length) return [...new Set(locales)].sort()
-			const langs = new Set()
-			for (const talk of this.rawTalks) {
-				if (talk.content_locale) langs.add(talk.content_locale)
-			}
-			return [...langs].sort()
-		},
-		resolvedSpeakers() {
-			if (this.speakers?.length) return this.speakers
-			if (!this.scheduleData) return []
-			const schedule = this.scheduleData.schedule
-			let sessionsBySpeaker = this.scheduleData.sessionsBySpeaker || {}
-			if (!Object.keys(sessionsBySpeaker).length) {
-				const talks = this.resolvedSessions.length ? this.resolvedSessions : this.rawTalks
-				sessionsBySpeaker = talks
-					.flatMap((talk) => (talk.speakers || []).map((sp) => [this.speakerCodeFromAny(sp), talk]))
-					.reduce((acc, [code, talk]) => {
-						if (!code) return acc
-						if (!acc[code]) acc[code] = []
-						acc[code].push(talk)
-						return acc
-					}, {})
-			}
-			return (schedule?.speakers || []).map(speaker => ({
-				...speaker,
-				sessions: sessionsForSpeaker(sessionsBySpeaker, speaker.code),
-			}))
-		},
-		viewToggleTitle() {
-			return this.activeViewMode === 'list' ? this.t.view_details : this.t.view_list
-		},
-		trackFilteredSpeakers() {
-			if (!this.selectedTracks.length) return this.resolvedSpeakers
-			const trackSet = new Set(this.selectedTracks)
-			return this.resolvedSpeakers.filter(speaker => {
-				for (const s of (speaker.sessions || [])) {
-					if (trackSet.has(s?.track?.id ?? s?.track)) return true
-				}
-				return false
-			})
-		},
-		languageFilteredSpeakers() {
-			if (!this.selectedLanguages.length) return this.trackFilteredSpeakers
-			const fallbackLocale = this.scheduleData?.schedule?.content_locales?.[0] || null
-			const selectedExact = new Set(this.selectedLanguages.map(normalizeLocaleCode).filter(Boolean))
-			const selectedPrimary = new Set(
-				this.selectedLanguages
-					.map(localePrimary)
-					.filter(Boolean)
-			)
-			return this.trackFilteredSpeakers.filter(speaker => {
-				for (const s of (speaker.sessions || [])) {
-					const sessionLocale = s?.content_locale || fallbackLocale
-					if (!sessionLocale) continue
-					const normalized = normalizeLocaleCode(sessionLocale)
-					if (!normalized) continue
-					if (selectedExact.has(normalized)) return true
-					const primary = localePrimary(normalized)
-					if (primary && selectedPrimary.has(primary)) return true
-				}
-				return false
-			})
-		},
-		sortedSpeakers() {
-			const speakers = [...this.languageFilteredSpeakers]
-			const byName = (a, b, dir = 1) => {
-				const an = (a.name || '').trim()
-				const bn = (b.name || '').trim()
-				if (!!an !== !!bn) return an ? -1 : 1
-				return dir * an.localeCompare(bn)
-			}
-			if (this.sortBy === 'featured') {
-				return speakers.sort((a, b) => compareFeaturedSpeakers(a, b, { featuredFirst: true }))
-			}
-			if (this.sortBy === 'a-z') {
-				return speakers.sort((a, b) => byName(a, b))
-			}
-			if (this.sortBy === 'z-a') {
-				return speakers.sort((a, b) => byName(a, b, -1))
-			}
-			// default: a-z
-			return speakers.sort((a, b) => byName(a, b))
-		},
 		filteredSpeakers() {
-			if (!this.searchQuery) return this.sortedSpeakers
-			const q = this.searchQuery.toLowerCase()
-			return this.sortedSpeakers.filter(speaker => {
-				const name = (speaker.name || '').toLowerCase()
-				const bio = (speaker.biography || '').toLowerCase()
-				const sessionTitles = (speaker.sessions || [])
-					.map(s => (getLocalizedString(s.title) || '').toLowerCase())
-					.join(' ')
-				return [name, bio, sessionTitles].some(f => f.includes(q))
-			})
+			return this.speakersFromApi
 		}
 	},
 	methods: {
@@ -456,6 +347,26 @@ export default {
 		},
 		onSessionClick(event, session) {
 			this.onSessionLinkClick(event, session)
+		},
+		async fetchSpeakers(url = null, append = false) {
+			if (this.isLoadingMore && append) return
+			this.isLoadingMore = true
+			try {
+				if (!url) {
+					const baseUrl = new URL(window.location.href)
+					baseUrl.searchParams.set('format', 'json')
+					if (this.searchQuery) baseUrl.searchParams.set('user__fullname__icontains', this.searchQuery)
+					url = baseUrl.toString()
+				}
+				const res = await fetch(url)
+				const data = await res.json()
+				this.speakersFromApi = append ? this.speakersFromApi.concat(data.results) : data.results
+				this.nextPageUrl = data.next ? new URL(window.location.href).origin + new URL(window.location.href).pathname + '?format=json&page=' + new URL(data.next).searchParams.get('page') : null
+			} catch (e) {
+				console.error("Failed to load speakers", e)
+			} finally {
+				this.isLoadingMore = false
+			}
 		},
 		getSessionStyle(session) {
 			return {

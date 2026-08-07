@@ -1,6 +1,6 @@
 import datetime as dt
 import io
-from urllib.parse import quote_plus, urljoin, urlparse
+from urllib.parse import urljoin, urlparse
 
 import vobject
 from django.conf import settings
@@ -21,13 +21,14 @@ from eventyay.agenda.export_resources import public_resource_attachments, public
 from eventyay.agenda.views.utils import (
     WipAgendaPreviewPageMixin,
     build_google_calendar_url,
-    build_speaker_cards,
     build_speaker_schedule_json,
+    build_speakers_list_schedule_json,
     is_public_speakers_empty,
     is_public_speakers_list_empty,
     redirect_to_presale_with_warning,
     redirect_when_public_speakers_unavailable,
     speaker_profile_display_order,
+    build_speaker_cards,
 )
 from eventyay.base.models import SpeakerProfile, TalkQuestionTarget, User
 from eventyay.common.text.path import safe_filename
@@ -53,6 +54,15 @@ class SpeakerList(EventPermissionRequired, Filterable, ListView):
     default_filters = ('user__fullname__icontains',)
     paginate_by = 48
 
+    def render_to_response(self, context, **response_kwargs):
+        if self.request.GET.get('format') == 'json' or self.request.headers.get('Accept') == 'application/json':
+            speakers = build_speaker_cards(context['object_list'], self.request.event)
+            return JsonResponse({
+                'results': speakers,
+                'next': context['page_obj'].has_next() if context.get('page_obj') else False
+            })
+        return super().render_to_response(context, **response_kwargs)
+
     def has_permission(self):
         return can_list_released_schedule_speakers(self.request.user, self.request.event)
 
@@ -69,20 +79,10 @@ class SpeakerList(EventPermissionRequired, Filterable, ListView):
         qs = qs.select_related('user', 'event', 'event__organizer').order_by(*speaker_profile_display_order())
         return self.filter_queryset(qs)
 
-    def get_template_names(self):
-        # Load-more / infinite-scroll requests only need the card markup.
-        if self.request.GET.get('partial'):
-            return ['agenda/includes/speaker_cards.html']
-        return [self.template_name]
+
 
     def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['speakers_cards'] = build_speaker_cards(context['object_list'], self.request.event)
-        search_query = self.request.GET.get('q', '').strip()
-        context['search_query'] = search_query
-        # Prebuilt query prefix for no-JS pagination links, e.g. ``q=smith&``.
-        context['pagination_querystring'] = f'q={quote_plus(search_query)}&' if search_query else ''
-        return context
+        return super().get_context_data(**kwargs)
 
 
 class SpeakerView(PermissionRequired, TemplateView):
