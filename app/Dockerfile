@@ -35,6 +35,12 @@ COPY . .
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --all-extras --all-groups
 
+# Log installed plugin versions for build traceability
+RUN echo "=== Installed plugin versions ===" && \
+    .venv/bin/pip list 2>/dev/null \
+      | grep -iE 'eventyay-paypal|eventyay-stripe|eventyay-bitpay|eventyay-socialmedia|exhibition|eventyay-teamshifts' \
+    || echo "(no plugins found)"
+
 # Run npm stuff (needs nodejs)
 RUN make npminstall
 
