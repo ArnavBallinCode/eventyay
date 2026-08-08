@@ -151,7 +151,7 @@ def build_speaker_cards(profiles, event):
         # find sessions for this speaker
         speaker_sessions = []
         for talk in talks:
-            if user in talk.submission.speakers.all():
+            if talk.submission and user in talk.submission.speakers.all():
                 speaker_sessions.append({
                     'id': talk.submission.code,
                     'title': talk.submission.title,

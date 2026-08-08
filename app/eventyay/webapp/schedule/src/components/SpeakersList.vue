@@ -50,7 +50,7 @@
 							path(d="M3 7.5 7.5 3m0 0L12 7.5M7.5 3v13.5m13.5 0L16.5 21m0 0L12 16.5m4.5 4.5V7.5")
 						span.btn-label {{ currentSortLabel }}
 					.dropdown-menu(v-if="openDropdown === 'sort'")
-						button.dropdown-item(v-for="opt in sortOptions", :key="opt.value", :class="{'selected': sortBy === opt.value}", @click="sortBy = opt.value; openDropdown = null")
+						button.dropdown-item(v-for="opt in sortOptions", :key="opt.value", :class="{'selected': sortBy === opt.value}", @click="setSort(opt.value)")
 							| {{ opt.label }}
 			.view-toggle
 				button.filter-btn.view-btn(@click="toggleView", :title="viewToggleTitle")
@@ -126,6 +126,7 @@
 		| {{ t.no_speakers_found }}
 	.loading(v-if="isLoadingMore")
 		| Loading...
+	.sentinel(ref="sentinel")
 	.backdrop(v-if="openDropdown || mobileFiltersOpen || mobileMoreOpen", @click="closeToolbarOverlays")
 </template>
 
@@ -213,22 +214,20 @@ export default {
 			this.sortBy = 'a-z'
 		}
 		this.fetchSpeakers()
-		
+
 		this.observer = new IntersectionObserver((entries) => {
 			if (entries[0].isIntersecting && this.nextPageUrl) {
 				this.fetchSpeakers(this.nextPageUrl, true)
 			}
 		})
-		setTimeout(() => {
-			if (this.$el.querySelector('.loading')) {
-				this.observer.observe(this.$el.querySelector('.loading'))
-			}
-		}, 1000)
+		const sentinel = this.$el.querySelector('.sentinel')
+		if (sentinel) this.observer.observe(sentinel)
 	},
 	watch: {
 		featuredSortAvailable(available) {
 			if (!available && this.sortBy === 'featured') {
 				this.sortBy = 'a-z'
+				this.fetchSpeakers()
 			}
 		},
 		searchQuery() {
@@ -236,6 +235,14 @@ export default {
 			this.searchTimeout = setTimeout(() => {
 				this.fetchSpeakers()
 			}, 300)
+		},
+		nextPageUrl() {
+			if (!this.nextPageUrl) return
+			const sentinel = this.$el.querySelector('.sentinel')
+			if (sentinel && this.observer) {
+				this.observer.unobserve(sentinel)
+				this.observer.observe(sentinel)
+			}
 		}
 	},
 	beforeUnmount() {
@@ -355,6 +362,7 @@ export default {
 					const baseUrl = new URL(window.location.href)
 					baseUrl.searchParams.set('format', 'json')
 					if (this.searchQuery) baseUrl.searchParams.set('q', this.searchQuery)
+					if (this.sortBy !== 'featured') baseUrl.searchParams.set('sort', this.sortBy)
 					url = baseUrl.toString()
 				}
 				const res = await fetch(url)
@@ -406,6 +414,11 @@ export default {
 		},
 		toggleDropdown(name) {
 			this.openDropdown = this.openDropdown === name ? null : name
+		},
+		setSort(value) {
+			this.sortBy = value
+			this.openDropdown = null
+			this.fetchSpeakers()
 		},
 		clearAllFilters() {
 			this.searchQuery = ''

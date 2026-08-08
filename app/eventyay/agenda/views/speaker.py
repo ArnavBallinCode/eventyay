@@ -51,7 +51,11 @@ class SpeakerList(EventPermissionRequired, Filterable, ListView):
     context_object_name = 'speakers'
     template_name = 'agenda/speakers.html'
     permission_required = 'base.list_schedule'
-    default_filters = ('user__fullname__icontains',)
+    default_filters = (
+        'user__fullname__icontains',
+        'biography__icontains',
+        'user__submissions__title__icontains',
+    )
     paginate_by = 48
 
     def render_to_response(self, context, **response_kwargs):
@@ -76,8 +80,16 @@ class SpeakerList(EventPermissionRequired, Filterable, ListView):
     def get_queryset(self):
         event = self.request.event
         qs = SpeakerProfile.objects.filter(user__in=event.speakers, event=event)
-        qs = qs.select_related('user', 'event', 'event__organizer').order_by(*speaker_profile_display_order())
-        return self.filter_queryset(qs)
+        qs = qs.select_related('user', 'event', 'event__organizer')
+        sort = self.request.GET.get('sort')
+        if sort == 'a-z':
+            qs = qs.order_by('user__fullname', 'pk')
+        elif sort == 'z-a':
+            qs = qs.order_by('-user__fullname', 'pk')
+        else:
+            qs = qs.order_by(*speaker_profile_display_order())
+        # Searching session titles joins the speakers M2M, which can duplicate rows.
+        return self.filter_queryset(qs).distinct()
 
 
 
