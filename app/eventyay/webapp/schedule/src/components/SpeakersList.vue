@@ -65,7 +65,6 @@
 		a.speaker-card(
 			v-for="(speaker, idx) in filteredSpeakers",
 			:key="speaker.code || idx",
-			:ref="el => { if(el) speakerCards[idx] = el }",
 			:href="getSpeakerLink(speaker)",
 			@click="onSpeakerClick($event, speaker)"
 		)
@@ -355,13 +354,19 @@ export default {
 				if (!url) {
 					const baseUrl = new URL(window.location.href)
 					baseUrl.searchParams.set('format', 'json')
-					if (this.searchQuery) baseUrl.searchParams.set('user__fullname__icontains', this.searchQuery)
+					if (this.searchQuery) baseUrl.searchParams.set('q', this.searchQuery)
 					url = baseUrl.toString()
 				}
 				const res = await fetch(url)
 				const data = await res.json()
 				this.speakersFromApi = append ? this.speakersFromApi.concat(data.results) : data.results
-				this.nextPageUrl = data.next ? new URL(window.location.href).origin + new URL(window.location.href).pathname + '?format=json&page=' + new URL(data.next).searchParams.get('page') : null
+				this.nextPageUrl = null
+				if (data.next) {
+					const nextUrl = new URL(url)
+					const page = nextUrl.searchParams.get('page')
+					nextUrl.searchParams.set('page', page ? String(Number(page) + 1) : '2')
+					this.nextPageUrl = nextUrl.toString()
+				}
 			} catch (e) {
 				console.error("Failed to load speakers", e)
 			} finally {
@@ -404,8 +409,6 @@ export default {
 		},
 		clearAllFilters() {
 			this.searchQuery = ''
-			this.selectedLanguages = []
-			this.selectedTracks = []
 			this.openDropdown = null
 		},
 		toggleView() {

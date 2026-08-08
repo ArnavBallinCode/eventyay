@@ -134,7 +134,7 @@ def build_speaker_cards(profiles, event):
     session descriptions, or unused avatar variants - so the overview payload
     does not grow with the full schedule.
     """
-    include_avatar = bool(event.cfp.request_avatar and event.cfp.public_avatar)
+    include_avatar, _ = speaker_public_field_flags(event)
     cards = []
     
     # We need to compute sessions for each speaker.
