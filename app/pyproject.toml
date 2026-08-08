@@ -103,6 +103,7 @@ dependencies = [
     "eventyay-socialmedia @ git+https://github.com/fossasia/eventyay-socialmedia.git@main",
     "exhibition @ git+https://github.com/fossasia/eventyay-exhibition.git@main",
     "eventyay-teamshifts @ git+https://github.com/fossasia/eventyay-teamshifts.git@main",
+    "eventyay-interpretation @ git+https://github.com/fossasia/eventyay-interpretation.git@main",
     "execnet>=2.1.2",
     "fido2>=2.2.0",
     "fonttools>=4.63.0",
