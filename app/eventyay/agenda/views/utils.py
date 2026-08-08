@@ -111,16 +111,12 @@ def speaker_profile_display_order():
 
 
 def build_speaker_card_avatar(user, event):
-    """Return responsive avatar variants for a speaker card, or ``None``.
-
-    Uploaded avatars expose tiny/list/default thumbnails so the browser can pick
-    an appropriately sized image via ``srcset``. External avatars fall back to a
-    single URL.
-    """
+    """Return a responsive avatar URL for a speaker card, or ``None``."""
     if user.avatar and user.avatar != 'False':
-        tiny = user.get_avatar_url(event=event, thumbnail='tiny')
         default = user.get_avatar_url(event=event, thumbnail='default')
-        return default or tiny
+        if default:
+            return default
+        return user.get_avatar_url(event=event, thumbnail='tiny')
     external = user.get_avatar_url(event=event)
     if not external:
         return None
@@ -157,28 +153,30 @@ def build_speaker_cards(profiles, event):
             .exclude(submission__state=SubmissionStates.DELETED)
         )
     
-    for profile in profiles:
-        user = profile.user
-        
-        # find sessions for this speaker
-        speaker_sessions = []
-        for talk in talks:
-            if talk.submission and user in talk.submission.speakers.all():
-                speaker_sessions.append({
+    # Precompute a lookup dictionary for O(N+M) performance
+    speaker_sessions_map = {}
+    for talk in talks:
+        if talk.submission:
+            for speaker in talk.submission.speakers.all():
+                speaker_sessions_map.setdefault(speaker.id, []).append({
                     'id': talk.submission.code,
                     'title': talk.submission.title,
                 })
+
+    for profile in profiles:
+        user = profile.user
         
         card = {
             'code': user.code,
             'name': user.get_display_name(),
             'is_featured': bool(profile.is_featured),
             'avatar': None,
-            'sessions': speaker_sessions,
+            'sessions': speaker_sessions_map.get(user.id, []),
         }
         if include_avatar and user.has_avatar:
             card['avatar'] = build_speaker_card_avatar(user, event)
         cards.append(card)
+        
     return cards
 
 
