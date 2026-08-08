@@ -20,7 +20,7 @@ from django_context_decorator import context
 from django_scopes import scope
 from i18nfield.utils import I18nJSONEncoder
 
-from eventyay.base.models import SpeakerProfile, TalkSlot, User
+from eventyay.base.models import SpeakerProfile, SubmissionStates, TalkSlot, User
 from eventyay.base.models.submission import SubmissionFavourite
 from eventyay.common.exporter import BaseExporter
 from eventyay.common.signals import register_data_exporters, register_my_data_exporters
@@ -143,7 +143,19 @@ def build_speaker_cards(profiles, event):
     
     talks = []
     if schedule:
-        talks = list(schedule.talks.filter(is_visible=True).select_related('submission', 'room', 'submission__track').prefetch_related('submission__speakers'))
+        talks = list(
+            schedule.talks.select_related('submission', 'room', 'submission__track')
+            .prefetch_related('submission__speakers')
+            .filter(
+                room__isnull=False,
+                room__deleted=False,
+                room__is_unscheduled=False,
+                start__isnull=False,
+                is_visible=True,
+                submission__isnull=False,
+            )
+            .exclude(submission__state=SubmissionStates.DELETED)
+        )
     
     for profile in profiles:
         user = profile.user
