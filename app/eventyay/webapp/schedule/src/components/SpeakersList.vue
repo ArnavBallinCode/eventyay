@@ -53,7 +53,7 @@
 						button.dropdown-item(v-for="opt in sortOptions", :key="opt.value", :class="{'selected': sortBy === opt.value}", @click="setSort(opt.value)")
 							| {{ opt.label }}
 			.view-toggle
-				button.filter-btn.view-btn(@click="toggleView", :title="viewToggleTitle")
+				button.filter-btn.view-btn(@click="toggleView", :title="activeViewMode === 'list' ? t.view_details : t.view_list")
 					svg.filter-icon(v-if="activeViewMode === 'list'", viewBox="0 0 24 24", fill="none", stroke="currentColor", stroke-width="2")
 						path(d="M4 6h16M4 12h16M4 18h16")
 					svg.filter-icon(v-else, viewBox="0 0 24 24", fill="none", stroke="currentColor", stroke-width="2")

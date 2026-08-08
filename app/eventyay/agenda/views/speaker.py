@@ -86,7 +86,7 @@ class SpeakerList(EventPermissionRequired, Filterable, ListView):
         elif sort == 'z-a':
             qs = qs.order_by('-user__fullname', 'pk')
         else:
-            qs = qs.order_by(*speaker_profile_display_order())
+            qs = qs.order_by('-is_featured', *speaker_profile_display_order())
         # Searching session titles joins the speakers M2M, which can duplicate rows.
         return self.filter_queryset(qs).distinct()
 
