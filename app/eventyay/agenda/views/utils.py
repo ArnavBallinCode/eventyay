@@ -143,7 +143,7 @@ def build_speaker_cards(profiles, event):
     
     talks = []
     if schedule:
-        talks = list(schedule.talks.all().select_related('submission', 'room', 'submission__track').prefetch_related('submission__speakers'))
+        talks = list(schedule.talks.filter(is_visible=True).select_related('submission', 'room', 'submission__track').prefetch_related('submission__speakers'))
     
     for profile in profiles:
         user = profile.user

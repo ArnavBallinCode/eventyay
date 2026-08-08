@@ -122,6 +122,8 @@
 										span.featured-speaker-session-title {{ getLocalizedString(session.title) }}
 						.featured-speaker-profile-link
 							a(:href="getSpeakerLink(speaker)", @click="onSpeakerClick($event, speaker)") {{ t.view_profile }}
+	.empty(v-if="loadError")
+		| {{ t.load_error }}
 	.empty(v-else)
 		| {{ t.no_speakers_found }}
 	.loading(v-if="isLoadingMore")
@@ -200,6 +202,7 @@ export default {
 			speakersFromApi: [],
 			nextPageUrl: null,
 			isLoadingMore: false,
+			loadError: false,
 			searchTimeout: null,
 			sortBy: 'featured',
 			openDropdown: null,
@@ -247,6 +250,7 @@ export default {
 	},
 	beforeUnmount() {
 		document.removeEventListener('click', this.onOutsideClick, true)
+		if (this.searchTimeout) clearTimeout(this.searchTimeout)
 		if (this.observer) this.observer.disconnect()
 	},
 	computed: {
@@ -262,6 +266,7 @@ export default {
 			return {
 				speaker_fallback: m.speaker_fallback || 'Speaker',
 				no_speakers_found: m.no_speakers_found || 'No speakers found.',
+				load_error: m.load_error || 'Could not load speakers. Please try again.',
 				search_speakers: m.search_speakers || 'Search speakers\u2026',
 				language: m.language || 'Language',
 				track: m.track || 'Track',
@@ -357,6 +362,7 @@ export default {
 		async fetchSpeakers(url = null, append = false) {
 			if (this.isLoadingMore && append) return
 			this.isLoadingMore = true
+			this.loadError = false
 			try {
 				if (!url) {
 					const baseUrl = new URL(window.location.href)
@@ -377,6 +383,7 @@ export default {
 				}
 			} catch (e) {
 				console.error("Failed to load speakers", e)
+				this.loadError = true
 			} finally {
 				this.isLoadingMore = false
 			}

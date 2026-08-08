@@ -22,7 +22,6 @@ from eventyay.agenda.views.utils import (
     WipAgendaPreviewPageMixin,
     build_google_calendar_url,
     build_speaker_schedule_json,
-    build_speakers_list_schedule_json,
     is_public_speakers_empty,
     is_public_speakers_list_empty,
     redirect_to_presale_with_warning,
@@ -59,7 +58,7 @@ class SpeakerList(EventPermissionRequired, Filterable, ListView):
     paginate_by = 48
 
     def render_to_response(self, context, **response_kwargs):
-        if self.request.GET.get('format') == 'json' or self.request.headers.get('Accept') == 'application/json':
+        if self.request.GET.get('format') == 'json' or 'application/json' in self.request.headers.get('Accept', ''):
             speakers = build_speaker_cards(context['object_list'], self.request.event)
             return JsonResponse({
                 'results': speakers,
