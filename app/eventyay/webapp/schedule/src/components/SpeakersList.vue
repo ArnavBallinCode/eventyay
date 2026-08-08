@@ -134,28 +134,9 @@
 
 <script>
 import moment from 'moment-timezone'
-import { getLocalizedString, compareFeaturedSpeakers, isFeaturedSpeakersSortAvailable, sessionsForSpeaker } from '../utils'
+import { getLocalizedString } from '../utils'
 import MarkdownContent from './MarkdownContent'
 import SpeakerSocialLinks from './SpeakerSocialLinks.vue'
-
-function normalizeLocaleCode (code) {
-	if (!code || typeof code !== 'string') return null
-	return code.replace(/_/g, '-').trim().toLowerCase()
-}
-
-function localePrimary (code) {
-	const normalized = normalizeLocaleCode(code)
-	if (!normalized) return null
-	return normalized.split('-')[0] || null
-}
-
-function localesMatch (filterValue, sessionValue) {
-	const a = normalizeLocaleCode(filterValue)
-	const b = normalizeLocaleCode(sessionValue)
-	if (!a || !b) return false
-	if (a === b) return true
-	return localePrimary(a) && localePrimary(a) === localePrimary(b)
-}
 
 export default {
 	name: 'SpeakersList',
@@ -213,8 +194,9 @@ export default {
 	},
 	mounted() {
 		document.addEventListener('click', this.onOutsideClick, true)
-		if (!this.featuredSortAvailable && this.sortBy === 'featured') {
-			this.sortBy = 'a-z'
+		const urlParams = new URLSearchParams(window.location.search)
+		if (urlParams.has('q')) {
+			this.searchQuery = urlParams.get('q')
 		}
 		this.fetchSpeakers()
 
@@ -227,15 +209,13 @@ export default {
 		if (sentinel) this.observer.observe(sentinel)
 	},
 	watch: {
-		featuredSortAvailable(available) {
-			if (!available && this.sortBy === 'featured') {
-				this.sortBy = 'a-z'
-				this.fetchSpeakers()
-			}
-		},
-		searchQuery() {
+		searchQuery(newVal) {
 			if (this.searchTimeout) clearTimeout(this.searchTimeout)
 			this.searchTimeout = setTimeout(() => {
+				const url = new URL(window.location.href)
+				if (newVal) url.searchParams.set('q', newVal)
+				else url.searchParams.delete('q')
+				window.history.replaceState({}, '', url)
 				this.fetchSpeakers()
 			}, 300)
 		},
@@ -289,19 +269,11 @@ export default {
 		},
 		sortOptions() {
 			const options = [
+				{ value: 'featured', label: this.t.featured },
 				{ value: 'a-z', label: this.t.a_to_z },
 				{ value: 'z-a', label: this.t.z_to_a },
 			]
-			if (this.featuredSortAvailable) {
-				options.unshift({ value: 'featured', label: this.t.featured })
-			}
 			return options
-		},
-		featuredSortAvailable() {
-			return isFeaturedSpeakersSortAvailable({
-				flags: this.scheduleData?.schedule?.feature_flags || {},
-				speakers: this.scheduleData?.schedule?.speakers || [],
-			})
 		},
 		currentSortLabel() {
 			const opt = this.sortOptions.find(o => o.value === this.sortBy)
@@ -363,27 +335,30 @@ export default {
 			if (this.isLoadingMore && append) return
 			this.isLoadingMore = true
 			this.loadError = false
+
+			if (this.fetchController) {
+				this.fetchController.abort()
+			}
+			this.fetchController = new AbortController()
+
 			try {
 				if (!url) {
 					const baseUrl = new URL(window.location.href)
 					baseUrl.searchParams.set('format', 'json')
 					if (this.searchQuery) baseUrl.searchParams.set('q', this.searchQuery)
-					if (this.sortBy !== 'featured') baseUrl.searchParams.set('sort', this.sortBy)
+					if (this.sortBy && this.sortBy !== 'featured') baseUrl.searchParams.set('sort', this.sortBy)
 					url = baseUrl.toString()
 				}
-				const res = await fetch(url)
+				const res = await fetch(url, { signal: this.fetchController.signal })
+				if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`)
 				const data = await res.json()
 				this.speakersFromApi = append ? this.speakersFromApi.concat(data.results) : data.results
-				this.nextPageUrl = null
-				if (data.next) {
-					const nextUrl = new URL(url)
-					const page = nextUrl.searchParams.get('page')
-					nextUrl.searchParams.set('page', page ? String(Number(page) + 1) : '2')
-					this.nextPageUrl = nextUrl.toString()
-				}
+				this.nextPageUrl = data.next || null
 			} catch (e) {
-				console.error("Failed to load speakers", e)
-				this.loadError = true
+				if (e.name !== 'AbortError') {
+					console.error("Failed to load speakers", e)
+					this.loadError = true
+				}
 			} finally {
 				this.isLoadingMore = false
 			}
@@ -391,15 +366,6 @@ export default {
 		getSessionStyle(session) {
 			return {
 				'--session-color': session?.track?.color || 'var(--pretalx-clr-primary)'
-			}
-		},
-		formatLanguageLabel(code) {
-			if (!code) return ''
-			const uiLang = localStorage.getItem('userLanguage') || 'en'
-			try {
-				return new Intl.DisplayNames([uiLang], { type: 'language' }).of(code) || code
-			} catch {
-				return code
 			}
 		},
 		formatSessionSlot(session) {

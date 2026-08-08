@@ -60,9 +60,15 @@ class SpeakerList(EventPermissionRequired, Filterable, ListView):
     def render_to_response(self, context, **response_kwargs):
         if self.request.GET.get('format') == 'json' or 'application/json' in self.request.headers.get('Accept', ''):
             speakers = build_speaker_cards(context['object_list'], self.request.event)
+            page_obj = context.get('page_obj')
+            next_url = None
+            if page_obj and page_obj.has_next():
+                query_dict = self.request.GET.copy()
+                query_dict['page'] = page_obj.next_page_number()
+                next_url = f"{self.request.path}?{query_dict.urlencode()}"
             return JsonResponse({
                 'results': speakers,
-                'next': context['page_obj'].has_next() if context.get('page_obj') else False
+                'next': next_url
             })
         return super().render_to_response(context, **response_kwargs)
 

@@ -139,6 +139,7 @@ def build_speaker_cards(profiles, event):
     
     talks = []
     if schedule:
+        user_ids = [profile.user_id for profile in profiles]
         talks = list(
             schedule.talks.select_related('submission', 'room', 'submission__track')
             .prefetch_related('submission__speakers')
@@ -149,8 +150,10 @@ def build_speaker_cards(profiles, event):
                 start__isnull=False,
                 is_visible=True,
                 submission__isnull=False,
+                submission__speakers__in=user_ids,
             )
             .exclude(submission__state=SubmissionStates.DELETED)
+            .distinct()
         )
     
     # Precompute a lookup dictionary for O(N+M) performance
