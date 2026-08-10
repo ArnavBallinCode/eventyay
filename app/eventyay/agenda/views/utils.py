@@ -24,6 +24,7 @@ from eventyay.base.models import SpeakerProfile, SubmissionStates, TalkSlot, Use
 from eventyay.base.models.submission import SubmissionFavourite
 from eventyay.common.exporter import BaseExporter
 from eventyay.common.signals import register_data_exporters, register_my_data_exporters
+from eventyay.common.social_links import serialize_social_link
 from eventyay.common.text.path import safe_filename
 from eventyay.schedule.exporters import FavedICalExporter, filter_featured_public_talk_slots
 from eventyay.talk_rules.agenda import (
@@ -125,12 +126,12 @@ def build_speaker_card_avatar(user, event):
 
 def build_speaker_cards(profiles, event):
     """Build lightweight per-speaker data for the public speakers overview.
-
-    Only the fields shown on a speaker card are included - no biographies,
-    session descriptions, or unused avatar variants - so the overview payload
-    does not grow with the full schedule.
+    
+    Now includes biographies and social links to fully render the grid and detail cards
+    while still avoiding the massive N+1 JSON overhead of the legacy full schedule blob.
     """
     include_avatar, _ = speaker_public_field_flags(event)
+    show_social_links = getattr(event.cfp, 'request_social_links', False) and event.cfp.is_field_public('social_links')
     cards = []
     
     # We need to compute sessions for each speaker.
@@ -164,7 +165,14 @@ def build_speaker_cards(profiles, event):
                 speaker_sessions_map.setdefault(speaker.id, []).append({
                     'id': talk.submission.code,
                     'title': talk.submission.title,
+                    'start': talk.start.isoformat() if talk.start else None,
+                    'end': talk.end.isoformat() if talk.end else None,
+                    'track': {'color': talk.submission.track.color} if talk.submission.track else None,
                 })
+
+    # Prefetch social links to avoid N+1 queries if we need them
+    if show_social_links and hasattr(profiles, 'prefetch_related'):
+        profiles = profiles.prefetch_related('social_links')
 
     for profile in profiles:
         user = profile.user
@@ -172,12 +180,15 @@ def build_speaker_cards(profiles, event):
         card = {
             'code': user.code,
             'name': user.get_display_name(),
+            'biography': profile.biography,
             'is_featured': bool(profile.is_featured),
             'avatar': None,
             'sessions': speaker_sessions_map.get(user.id, []),
         }
         if include_avatar and user.has_avatar:
             card['avatar'] = build_speaker_card_avatar(user, event)
+        if show_social_links:
+            card['social_links'] = [serialize_social_link(link) for link in profile.social_links.all()]
         cards.append(card)
         
     return cards

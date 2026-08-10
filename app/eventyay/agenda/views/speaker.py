@@ -1,5 +1,6 @@
 import datetime as dt
 import io
+import json
 from urllib.parse import urljoin, urlparse
 
 import vobject
@@ -96,10 +97,49 @@ class SpeakerList(EventPermissionRequired, Filterable, ListView):
         # Searching session titles joins the speakers M2M, which can duplicate rows.
         return self.filter_queryset(qs).distinct()
 
+    def filter_queryset(self, qs):
+        qs = super().filter_queryset(qs)
+        schedule = self.request.event.current_schedule
+        if not schedule:
+            return qs
 
+        tracks = self.request.GET.getlist('track')
+        if tracks:
+            qs = qs.filter(
+                user__submissions__track__in=tracks,
+                user__submissions__slots__schedule=schedule,
+                user__submissions__slots__is_visible=True,
+            )
+
+        languages = self.request.GET.getlist('language')
+        if languages:
+            qs = qs.filter(
+                user__submissions__content_locale__in=languages,
+                user__submissions__slots__schedule=schedule,
+                user__submissions__slots__is_visible=True,
+            )
+        return qs
 
     def get_context_data(self, **kwargs):
-        return super().get_context_data(**kwargs)
+        context = super().get_context_data(**kwargs)
+        event = self.request.event
+        schedule = event.current_schedule
+        
+        meta = {
+            'tracks': [],
+            'content_locales': [],
+        }
+        if schedule:
+            meta['tracks'] = list(event.tracks.all().values('id', 'name', 'color'))
+            locales = schedule.talks.filter(is_visible=True).exclude(
+                submission__content_locale__isnull=True
+            ).exclude(
+                submission__content_locale=''
+            ).values_list('submission__content_locale', flat=True).distinct()
+            meta['content_locales'] = sorted(list(set(locales)))
+
+        context['speakers_meta_json'] = json.dumps(meta, cls=I18nJSONEncoder)
+        return context
 
 
 class SpeakerView(PermissionRequired, TemplateView):

@@ -21,6 +21,33 @@
 			span.btn-label {{ t.filters }}
 			span.mobile-toggle-badge(v-if="hasActiveFilters")
 		.toolbar-filters(:class="{'open': mobileFiltersOpen}", ref="mobileFiltersPanel")
+			.filter-group(v-if="availableLanguages.length > 1")
+				.dropdown-wrapper
+					button.filter-btn(@click="toggleDropdown('language')", :class="{'active': selectedLanguages.length}")
+						svg.filter-icon(viewBox="0 0 24 24", fill="currentColor", aria-hidden="true")
+							path(d="M12.87 15.07l-2.54-2.51c.86-1.02 1.52-2.12 1.99-3.28H14V7h-4V5H8v2H4v2h7.17c-.39 1.17-.96 2.27-1.7 3.25-.48-.63-.9-1.31-1.25-2.03H6.1c.5 1.09 1.17 2.14 2 3.11L3 20h2l5-5 3.11 3.11.76-3.04z")
+							path(d="M15.5 11h-2L9 22h2l1-3h4l1 3h2l-3.5-11zm-2.3 6 .8-2.8.8 2.8h-1.6z")
+						span.btn-label {{ t.language }}
+						span.filter-dot(v-if="selectedLanguages.length")
+					.dropdown-menu(v-if="openDropdown === 'language'")
+						label.dropdown-item(v-for="lang in availableLanguages", :key="lang")
+							input(type="checkbox", :value="lang", v-model="selectedLanguages")
+							| {{ formatLanguageLabel(lang) }}
+			.filter-group(v-if="availableTracks.length > 1")
+				.dropdown-wrapper
+					button.filter-btn(@click="toggleDropdown('track')", :class="{'active': selectedTracks.length}")
+						svg.filter-icon(viewBox="0 0 24 24", fill="none", stroke="currentColor", stroke-width="2")
+							path(d="M9.568 3H5.25A2.25 2.25 0 0 0 3 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 0 0 5.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 0 0 9.568 3Z")
+							path(d="M6 6h.008v.008H6V6Z")
+						span.btn-label {{ t.track }}
+						span.filter-dot(v-if="selectedTracks.length")
+					.dropdown-menu(v-if="openDropdown === 'track'")
+						label.dropdown-item(v-for="track in availableTracks", :key="track.id")
+							input(type="checkbox", :value="track.id", v-model="selectedTracks")
+							span.track-color(v-if="track.color", :style="{'background-color': track.color}")
+							| {{ getLocalizedString(track.name) }}
+						.dropdown-actions(v-if="selectedTracks.length")
+							button.clear-btn(@click="selectedTracks = []") {{ t.clear }}
 			button.filter-btn.clear-filters-btn(
 				v-if="hasActiveFilters",
 				:title="t.reset_all_filters",
@@ -190,6 +217,9 @@ export default {
 			activeViewMode: this.viewMode,
 			mobileFiltersOpen: false,
 			mobileMoreOpen: false,
+			selectedLanguages: [],
+			selectedTracks: [],
+			metaData: null,
 		}
 	},
 	mounted() {
@@ -198,6 +228,17 @@ export default {
 		if (urlParams.has('q')) {
 			this.searchQuery = urlParams.get('q')
 		}
+		if (urlParams.has('language')) {
+			this.selectedLanguages = urlParams.getAll('language')
+		}
+		if (urlParams.has('track')) {
+			this.selectedTracks = urlParams.getAll('track')
+		}
+		const metaEl = document.getElementById('pretalx-speakers-meta')
+		if (metaEl) {
+			try { this.metaData = JSON.parse(metaEl.textContent) } catch (e) { /* ignore */ }
+		}
+		
 		if (this.speakers && this.speakers.length > 0) {
 			// Prop provided, do not fetch from API
 		} else {
@@ -216,12 +257,14 @@ export default {
 		searchQuery(newVal) {
 			if (this.searchTimeout) clearTimeout(this.searchTimeout)
 			this.searchTimeout = setTimeout(() => {
-				const url = new URL(window.location.href)
-				if (newVal) url.searchParams.set('q', newVal)
-				else url.searchParams.delete('q')
-				window.history.replaceState({}, '', url)
-				this.fetchSpeakers()
+				this.updateUrlAndFetch()
 			}, 300)
+		},
+		selectedLanguages() {
+			this.updateUrlAndFetch()
+		},
+		selectedTracks() {
+			this.updateUrlAndFetch()
 		},
 		nextPageUrl() {
 			if (!this.nextPageUrl) return
@@ -268,8 +311,20 @@ export default {
 				more: m.more || 'More',
 			}
 		},
+		availableLanguages() {
+			if (this.metaData && this.metaData.content_locales) {
+				return this.metaData.content_locales
+			}
+			return []
+		},
+		availableTracks() {
+			if (this.metaData && this.metaData.tracks) {
+				return this.metaData.tracks
+			}
+			return []
+		},
 		hasActiveFilters() {
-			return Boolean(this.searchQuery)
+			return Boolean(this.searchQuery) || this.selectedLanguages.length > 0 || this.selectedTracks.length > 0
 		},
 		sortOptions() {
 			const options = [
@@ -300,10 +355,7 @@ export default {
 			return this.speakers && this.speakers.length > 0 ? false : !!this.nextPageUrl
 		},
 		effectiveViewMode() {
-			if (this.speakers && this.speakers.length > 0) {
-				return this.activeViewMode
-			}
-			return 'list'
+			return this.activeViewMode
 		}
 	},
 	methods: {
@@ -321,6 +373,32 @@ export default {
 				})()
 			if (path.includes(this.$el)) return
 			this.closeToolbarOverlays()
+		},
+		updateUrlAndFetch() {
+			const url = new URL(window.location.href)
+			if (this.searchQuery) url.searchParams.set('q', this.searchQuery)
+			else url.searchParams.delete('q')
+			
+			url.searchParams.delete('language')
+			this.selectedLanguages.forEach(lang => url.searchParams.append('language', lang))
+			
+			url.searchParams.delete('track')
+			this.selectedTracks.forEach(track => url.searchParams.append('track', track))
+			
+			window.history.replaceState({}, '', url)
+			this.fetchSpeakers()
+		},
+		formatLanguageLabel(code) {
+			if (!code) return ''
+			return code.toString().trim().toLowerCase().replace(/_/g, '-')
+		},
+		clearAllFilters() {
+			this.searchQuery = ''
+			this.selectedLanguages = []
+			this.selectedTracks = []
+		},
+		toggleDropdown(name) {
+			this.openDropdown = this.openDropdown === name ? null : name
 		},
 		closeToolbarOverlays() {
 			this.openDropdown = null
@@ -369,6 +447,13 @@ export default {
 					const baseUrl = new URL(window.location.href)
 					baseUrl.searchParams.set('format', 'json')
 					if (this.searchQuery) baseUrl.searchParams.set('q', this.searchQuery)
+					
+					baseUrl.searchParams.delete('language')
+					this.selectedLanguages.forEach(lang => baseUrl.searchParams.append('language', lang))
+					
+					baseUrl.searchParams.delete('track')
+					this.selectedTracks.forEach(track => baseUrl.searchParams.append('track', track))
+
 					if (this.sortBy && this.sortBy !== 'featured') baseUrl.searchParams.set('sort', this.sortBy)
 					url = baseUrl.toString()
 				}
