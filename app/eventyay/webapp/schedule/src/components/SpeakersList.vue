@@ -52,16 +52,16 @@
 					.dropdown-menu(v-if="openDropdown === 'sort'")
 						button.dropdown-item(v-for="opt in sortOptions", :key="opt.value", :class="{'selected': sortBy === opt.value}", @click="setSort(opt.value)")
 							| {{ opt.label }}
-			.view-toggle
-				button.filter-btn.view-btn(@click="toggleView", :title="activeViewMode === 'list' ? t.view_details : t.view_list")
-					svg.filter-icon(v-if="activeViewMode === 'list'", viewBox="0 0 24 24", fill="none", stroke="currentColor", stroke-width="2")
+			.view-toggle(v-if="speakers && speakers.length")
+				button.filter-btn.view-btn(@click="toggleView", :title="effectiveViewMode === 'list' ? t.view_details : t.view_list")
+					svg.filter-icon(v-if="effectiveViewMode === 'list'", viewBox="0 0 24 24", fill="none", stroke="currentColor", stroke-width="2")
 						path(d="M4 6h16M4 12h16M4 18h16")
 					svg.filter-icon(v-else, viewBox="0 0 24 24", fill="none", stroke="currentColor", stroke-width="2")
 						rect(x="3" y="3" width="7" height="7")
 						rect(x="14" y="3" width="7" height="7")
 						rect(x="3" y="14" width="7" height="7")
 						rect(x="14" y="14" width="7" height="7")
-	.speakers-grid(v-if="filteredSpeakers.length && activeViewMode === 'list'")
+	.speakers-grid(v-if="filteredSpeakers.length && effectiveViewMode === 'list'")
 		a.speaker-card(
 			v-for="(speaker, idx) in filteredSpeakers",
 			:key="speaker.code || idx",
@@ -86,7 +86,7 @@
 					span.session-title(v-for="(session, s_idx) in speaker.sessions", :key="session.id || s_idx")
 						| {{ getLocalizedString(session.title) }}
 						span.separator(v-if="s_idx < speaker.sessions.length - 1") ,&nbsp;
-	.speakers-details(v-else-if="filteredSpeakers.length && activeViewMode === 'details'")
+	.speakers-details(v-else-if="filteredSpeakers.length && effectiveViewMode === 'details'")
 		.featured-speakers-grid
 			.featured-speaker-column(v-for="speaker in filteredSpeakers", :key="speaker.code")
 				details.featured-speaker-card
@@ -124,11 +124,11 @@
 							a(:href="getSpeakerLink(speaker)", @click="onSpeakerClick($event, speaker)") {{ t.view_profile }}
 	.empty(v-if="loadError")
 		| {{ t.load_error }}
-	.empty(v-else)
+	.empty(v-else-if="!isLoadingMore && !filteredSpeakers.length")
 		| {{ t.no_speakers_found }}
 	.loading(v-if="isLoadingMore")
 		| Loading...
-	.sentinel(ref="sentinel")
+	.sentinel(ref="sentinel", v-if="hasMore")
 	.backdrop(v-if="openDropdown || mobileFiltersOpen || mobileMoreOpen", @click="closeToolbarOverlays")
 </template>
 
@@ -198,7 +198,11 @@ export default {
 		if (urlParams.has('q')) {
 			this.searchQuery = urlParams.get('q')
 		}
-		this.fetchSpeakers()
+		if (this.speakers && this.speakers.length > 0) {
+			// Prop provided, do not fetch from API
+		} else {
+			this.fetchSpeakers()
+		}
 
 		this.observer = new IntersectionObserver((entries) => {
 			if (entries[0].isIntersecting && this.nextPageUrl) {
@@ -280,7 +284,26 @@ export default {
 			return opt ? opt.label : this.t.a_to_z
 		},
 		filteredSpeakers() {
+			if (this.speakers && this.speakers.length > 0) {
+				let list = [...this.speakers]
+				if (this.searchQuery) {
+					const q = this.searchQuery.toLowerCase()
+					list = list.filter(s => (s.name || s.public_name || '').toLowerCase().includes(q))
+				}
+				if (this.sortBy === 'a-z') list.sort((a, b) => (a.name || a.public_name || '').localeCompare(b.name || b.public_name))
+				else if (this.sortBy === 'z-a') list.sort((a, b) => (b.name || b.public_name || '').localeCompare(a.name || a.public_name))
+				return list
+			}
 			return this.speakersFromApi
+		},
+		hasMore() {
+			return this.speakers && this.speakers.length > 0 ? false : !!this.nextPageUrl
+		},
+		effectiveViewMode() {
+			if (this.speakers && this.speakers.length > 0) {
+				return this.activeViewMode
+			}
+			return 'list'
 		}
 	},
 	methods: {

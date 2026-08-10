@@ -700,18 +700,22 @@ export default {
 		if (this.schedule) {
 			this.onHomeServer = true
 		} else {
-			try {
-				this.schedule = await fetchWidgetScheduleData(this.eventUrl, {
-					version: this.version || '',
-					enrichData: this.enrichData,
-				})
-			} catch {
-				this.scheduleError = true
-				return
-			}
-			if (!this.schedule) {
-				this.scheduleUnavailable = true
-				return
+			if (this.isSpeakerView && this.view === 'speakers') {
+				this.schedule = { talks: [], schedule_unavailable: false }
+			} else {
+				try {
+					this.schedule = await fetchWidgetScheduleData(this.eventUrl, {
+						version: this.version || '',
+						enrichData: this.enrichData,
+					})
+				} catch {
+					this.scheduleError = true
+					return
+				}
+				if (!this.schedule) {
+					this.scheduleUnavailable = true
+					return
+				}
 			}
 		}
 		// Read toolbar metadata (version, exporters) injected by Django
