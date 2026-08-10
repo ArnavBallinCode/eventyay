@@ -167,7 +167,7 @@ function Q(e, i, a, ne, v, y) {
 				class: _(["toolbar-filters", { open: v.mobileFiltersOpen }]),
 				ref: "mobileFiltersPanel"
 			}, [
-				y.availableLanguages.length > 1 ? (p(), o("div", O, [s("div", k, [s("button", {
+				y.availableLanguages.length > 0 ? (p(), o("div", O, [s("div", k, [s("button", {
 					class: _(["filter-btn", { active: v.selectedLanguages.length }]),
 					onClick: i[3] ||= (e) => y.toggleDropdown("language")
 				}, [
@@ -187,7 +187,7 @@ function Q(e, i, a, ne, v, y) {
 					value: e,
 					"onUpdate:modelValue": i[4] ||= (e) => v.selectedLanguages = e
 				}, null, 8, N), [[n, v.selectedLanguages]]), u(g(y.formatLanguageLabel(e)), 1)]))), 128))])) : c("", !0)])])) : c("", !0),
-				y.availableTracks.length > 1 ? (p(), o("div", P, [s("div", F, [s("button", {
+				y.availableTracks.length > 0 ? (p(), o("div", P, [s("div", F, [s("button", {
 					class: _(["filter-btn", { active: v.selectedTracks.length }]),
 					onClick: i[5] ||= (e) => y.toggleDropdown("track")
 				}, [
@@ -271,11 +271,11 @@ function Q(e, i, a, ne, v, y) {
 				class: _(["dropdown-item", { selected: v.sortBy === e.value }]),
 				key: e.value,
 				onClick: (t) => y.setSort(e.value)
-			}, g(e.label), 11, J))), 128))])) : c("", !0)])]), a.speakers && a.speakers.length ? (p(), o("div", Y, [s("button", {
+			}, g(e.label), 11, J))), 128))])) : c("", !0)])]), y.filteredSpeakers.length ? (p(), o("div", Y, [s("button", {
 				class: "filter-btn view-btn",
 				onClick: i[11] ||= (...e) => y.toggleView && y.toggleView(...e),
-				title: y.effectiveViewMode === "list" ? y.t.view_details : y.t.view_list
-			}, [y.effectiveViewMode === "list" ? (p(), o("svg", ie, [...i[21] ||= [s("path", { d: "M4 6h16M4 12h16M4 18h16" }, null, -1)]])) : (p(), o("svg", ae, [...i[22] ||= [
+				title: v.activeViewMode === "list" ? y.t.view_details : y.t.view_list
+			}, [v.activeViewMode === "list" ? (p(), o("svg", ie, [...i[21] ||= [s("path", { d: "M4 6h16M4 12h16M4 18h16" }, null, -1)]])) : (p(), o("svg", ae, [...i[22] ||= [
 				s("rect", {
 					x: "3",
 					y: "3",
@@ -302,7 +302,7 @@ function Q(e, i, a, ne, v, y) {
 				}, null, -1)
 			]]))], 8, X)])) : c("", !0)], 2)
 		])),
-		y.filteredSpeakers.length && y.effectiveViewMode === "list" ? (p(), o("div", oe, [(p(!0), o(r, null, h(y.filteredSpeakers, (e, t) => (p(), o("a", {
+		y.filteredSpeakers.length && v.activeViewMode === "list" ? (p(), o("div", oe, [(p(!0), o(r, null, h(y.filteredSpeakers, (e, t) => (p(), o("a", {
 			class: "speaker-card",
 			key: e.code || t,
 			href: y.getSpeakerLink(e),
@@ -322,7 +322,7 @@ function Q(e, i, a, ne, v, y) {
 				class: "session-title",
 				key: t.id || n
 			}, [u(g(v.getLocalizedString(t.title)), 1), n < e.sessions.length - 1 ? (p(), o("span", he, ",\xA0")) : c("", !0)]))), 128))])) : c("", !0)
-		])], 8, se))), 128))])) : y.filteredSpeakers.length && y.effectiveViewMode === "details" ? (p(), o("div", ge, [s("div", _e, [(p(!0), o(r, null, h(y.filteredSpeakers, (e) => (p(), o("div", {
+		])], 8, se))), 128))])) : y.filteredSpeakers.length && v.activeViewMode === "details" ? (p(), o("div", ge, [s("div", _e, [(p(!0), o(r, null, h(y.filteredSpeakers, (e) => (p(), o("div", {
 			class: "featured-speaker-column",
 			key: e.code
 		}, [s("details", ve, [s("summary", ye, [s("div", be, [e.avatar || e.avatar_url ? (p(), o("img", {
@@ -529,9 +529,6 @@ var $ = /*#__PURE__*/ a({
 		},
 		hasMore() {
 			return this.speakers && this.speakers.length > 0 ? !1 : !!this.nextPageUrl;
-		},
-		effectiveViewMode() {
-			return this.activeViewMode;
 		}
 	},
 	methods: {

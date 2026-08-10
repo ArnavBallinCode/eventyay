@@ -21,7 +21,7 @@
 			span.btn-label {{ t.filters }}
 			span.mobile-toggle-badge(v-if="hasActiveFilters")
 		.toolbar-filters(:class="{'open': mobileFiltersOpen}", ref="mobileFiltersPanel")
-			.filter-group(v-if="availableLanguages.length > 1")
+			.filter-group(v-if="availableLanguages.length > 0")
 				.dropdown-wrapper
 					button.filter-btn(@click="toggleDropdown('language')", :class="{'active': selectedLanguages.length}")
 						svg.filter-icon(viewBox="0 0 24 24", fill="currentColor", aria-hidden="true")
@@ -33,7 +33,7 @@
 						label.dropdown-item(v-for="lang in availableLanguages", :key="lang")
 							input(type="checkbox", :value="lang", v-model="selectedLanguages")
 							| {{ formatLanguageLabel(lang) }}
-			.filter-group(v-if="availableTracks.length > 1")
+			.filter-group(v-if="availableTracks.length > 0")
 				.dropdown-wrapper
 					button.filter-btn(@click="toggleDropdown('track')", :class="{'active': selectedTracks.length}")
 						svg.filter-icon(viewBox="0 0 24 24", fill="none", stroke="currentColor", stroke-width="2")
@@ -79,16 +79,16 @@
 					.dropdown-menu(v-if="openDropdown === 'sort'")
 						button.dropdown-item(v-for="opt in sortOptions", :key="opt.value", :class="{'selected': sortBy === opt.value}", @click="setSort(opt.value)")
 							| {{ opt.label }}
-			.view-toggle(v-if="speakers && speakers.length")
-				button.filter-btn.view-btn(@click="toggleView", :title="effectiveViewMode === 'list' ? t.view_details : t.view_list")
-					svg.filter-icon(v-if="effectiveViewMode === 'list'", viewBox="0 0 24 24", fill="none", stroke="currentColor", stroke-width="2")
+			.view-toggle(v-if="filteredSpeakers.length")
+				button.filter-btn.view-btn(@click="toggleView", :title="activeViewMode === 'list' ? t.view_details : t.view_list")
+					svg.filter-icon(v-if="activeViewMode === 'list'", viewBox="0 0 24 24", fill="none", stroke="currentColor", stroke-width="2")
 						path(d="M4 6h16M4 12h16M4 18h16")
 					svg.filter-icon(v-else, viewBox="0 0 24 24", fill="none", stroke="currentColor", stroke-width="2")
 						rect(x="3" y="3" width="7" height="7")
 						rect(x="14" y="3" width="7" height="7")
 						rect(x="3" y="14" width="7" height="7")
 						rect(x="14" y="14" width="7" height="7")
-	.speakers-grid(v-if="filteredSpeakers.length && effectiveViewMode === 'list'")
+	.speakers-grid(v-if="filteredSpeakers.length && activeViewMode === 'list'")
 		a.speaker-card(
 			v-for="(speaker, idx) in filteredSpeakers",
 			:key="speaker.code || idx",
@@ -113,7 +113,7 @@
 					span.session-title(v-for="(session, s_idx) in speaker.sessions", :key="session.id || s_idx")
 						| {{ getLocalizedString(session.title) }}
 						span.separator(v-if="s_idx < speaker.sessions.length - 1") ,&nbsp;
-	.speakers-details(v-else-if="filteredSpeakers.length && effectiveViewMode === 'details'")
+	.speakers-details(v-else-if="filteredSpeakers.length && activeViewMode === 'details'")
 		.featured-speakers-grid
 			.featured-speaker-column(v-for="speaker in filteredSpeakers", :key="speaker.code")
 				details.featured-speaker-card
@@ -353,9 +353,6 @@ export default {
 		},
 		hasMore() {
 			return this.speakers && this.speakers.length > 0 ? false : !!this.nextPageUrl
-		},
-		effectiveViewMode() {
-			return this.activeViewMode
 		}
 	},
 	methods: {
