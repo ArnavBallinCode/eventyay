@@ -346,7 +346,7 @@ export default {
 			return `${this.eventUrl.replace(/\/$/, '')}/video/rooms/`
 		},
 		scheduleMaxWidth () {
-			return this.schedule ? Math.min(this.scrollParentWidth, 78 + this.schedule.rooms.length * 365) : this.scrollParentWidth
+			return this.schedule ? Math.min(this.scrollParentWidth, 78 + (this.schedule.rooms?.length || 0) * 365) : this.scrollParentWidth
 		},
 		showGrid () {
 			// Always allow a distinct calendar grid view when not explicitly in list format
@@ -415,7 +415,7 @@ export default {
 		},
 		speakersLookup () {
 			if (!this.schedule) return {}
-			return this.schedule.speakers.reduce((acc, s) => { acc[s.code] = s; return acc }, {})
+			return (this.schedule.speakers || []).reduce((acc, s) => { acc[s.code] = s; return acc }, {})
 		},
 		talksLookup () {
 			if (!this.schedule) return {}
@@ -701,7 +701,7 @@ export default {
 			this.onHomeServer = true
 		} else {
 			if (this.isSpeakerView && this.view === 'speakers') {
-				this.schedule = { talks: [], schedule_unavailable: false }
+				this.schedule = { talks: [], rooms: [], schedule_unavailable: false }
 			} else {
 				try {
 					this.schedule = await fetchWidgetScheduleData(this.eventUrl, {

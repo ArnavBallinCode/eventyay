@@ -765,7 +765,7 @@ var ve = r({
 			}), e;
 		},
 		speakersLookup() {
-			return this.schedule ? this.schedule.speakers.reduce((e, t) => (e[t.code] = t, e), {}) : {};
+			return this.schedule ? (this.schedule.speakers || []).reduce((e, t) => (e[t.code] = t, e), {}) : {};
 		},
 		talksLookup() {
 			return this.schedule ? (this.schedule.talks || []).reduce((e, t) => (e[t.code] = t, e), {}) : {};
