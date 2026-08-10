@@ -714,10 +714,10 @@ var ve = r({
 			return e === !1 || e === "false" ? !1 : e === !0 || e === "true" || !!this.schedule?.speakers_list_public && !this.schedule?.exports_disabled;
 		},
 		roomsLookup() {
-			return this.schedule ? this.schedule.rooms.reduce((e, t) => (e[t.id] = t, e), {}) : {};
+			return this.schedule ? (this.schedule.rooms || []).reduce((e, t) => (e[t.id] = t, e), {}) : {};
 		},
 		tracksLookup() {
-			return this.schedule ? this.schedule.tracks.reduce((e, t) => (e[t.id] = t, e), {}) : {};
+			return this.schedule ? (this.schedule.tracks || []).reduce((e, t) => (e[t.id] = t, e), {}) : {};
 		},
 		filteredTracks() {
 			return this.allTracks.filter((e) => e.selected);

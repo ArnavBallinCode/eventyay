@@ -370,11 +370,11 @@ export default {
 		},
 		roomsLookup () {
 			if (!this.schedule) return {}
-			return this.schedule.rooms.reduce((acc, room) => { acc[room.id] = room; return acc }, {})
+			return (this.schedule.rooms || []).reduce((acc, room) => { acc[room.id] = room; return acc }, {})
 		},
 		tracksLookup () {
 			if (!this.schedule) return {}
-			return this.schedule.tracks.reduce((acc, t) => { acc[t.id] = t; return acc }, {})
+			return (this.schedule.tracks || []).reduce((acc, t) => { acc[t.id] = t; return acc }, {})
 		},
 		filteredTracks () {
 			return this.allTracks.filter(t => t.selected)
