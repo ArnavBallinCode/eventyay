@@ -441,7 +441,9 @@ export default {
 
 			try {
 				if (!url) {
-					const baseUrl = new URL(window.location.href)
+					const base = (this.eventUrl || '').replace(/\/?$/, '/')
+					const baseApi = base ? `${base}speakers/` : window.location.href
+					const baseUrl = new URL(baseApi, window.location.origin)
 					baseUrl.searchParams.set('format', 'json')
 					if (this.searchQuery) baseUrl.searchParams.set('q', this.searchQuery)
 					
