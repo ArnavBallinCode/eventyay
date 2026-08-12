@@ -221,12 +221,9 @@ requires = [
 ]
 build-backend = "setuptools.build_meta"
 
-[dependency-groups]
-dev = [
-    "django-debug-toolbar>=7.0.0",
-    "django-extensions>=4.1",
-    "wlc>=2.1.1",
-]
+[project.optional-dependencies]
+# Kept as optional-dependencies (not a dependency-group) so Dependabot's uv
+# ecosystem reliably tracks documentation library updates.
 docs = [
     "docutils>=0.22.4",
     "pyenchant>=3.3.0",
@@ -237,6 +234,13 @@ docs = [
     "sphinxcontrib-images>=1.0.1",
     "sphinxcontrib-spelling>=8.0.2",
     "sphinxemoji>=0.3.2",
+]
+
+[dependency-groups]
+dev = [
+    "django-debug-toolbar>=7.0.0",
+    "django-extensions>=4.1",
+    "wlc>=2.1.1",
 ]
 lint = [
     "ruff>=0.16.2",
