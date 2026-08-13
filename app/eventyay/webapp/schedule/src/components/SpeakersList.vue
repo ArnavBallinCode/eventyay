@@ -387,12 +387,19 @@ export default {
 		},
 		formatLanguageLabel(code) {
 			if (!code) return ''
-			return code.toString().trim().toLowerCase().replace(/_/g, '-')
+			try {
+				const locale = document.documentElement.lang || 'en'
+				const displayNames = new Intl.DisplayNames([locale], { type: 'language' })
+				return displayNames.of(code) || code
+			} catch (e) {
+				return code.toString().trim().toLowerCase().replace(/_/g, '-')
+			}
 		},
 		clearAllFilters() {
 			this.searchQuery = ''
 			this.selectedLanguages = []
 			this.selectedTracks = []
+			this.openDropdown = null
 		},
 		toggleDropdown(name) {
 			this.openDropdown = this.openDropdown === name ? null : name
@@ -430,6 +437,7 @@ export default {
 			this.onSessionLinkClick(event, session)
 		},
 		async fetchSpeakers(url = null, append = false) {
+			if (this.speakers && this.speakers.length > 0) return
 			if (this.isLoadingMore && append) return
 			this.isLoadingMore = true
 			this.loadError = false
@@ -500,10 +508,7 @@ export default {
 			this.openDropdown = null
 			this.fetchSpeakers()
 		},
-		clearAllFilters() {
-			this.searchQuery = ''
-			this.openDropdown = null
-		},
+
 		toggleView() {
 			this.activeViewMode = this.activeViewMode === 'list' ? 'details' : 'list'
 		}

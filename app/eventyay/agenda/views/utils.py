@@ -167,7 +167,16 @@ def build_speaker_cards(profiles, event):
                     'title': talk.submission.title,
                     'start': talk.start.isoformat() if talk.start else None,
                     'end': talk.end.isoformat() if talk.end else None,
-                    'track': {'color': talk.submission.track.color} if talk.submission.track else None,
+                    'track': {
+                        'id': talk.submission.track.id,
+                        'name': talk.submission.track.name,
+                        'color': talk.submission.track.color,
+                    } if talk.submission.track else None,
+                    'room': {
+                        'id': talk.room.id,
+                        'name': talk.room.name,
+                    } if talk.room else None,
+                    'content_locale': talk.submission.content_locale,
                 })
 
     # Prefetch social links to avoid N+1 queries if we need them

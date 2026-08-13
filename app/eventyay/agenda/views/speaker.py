@@ -128,6 +128,7 @@ class SpeakerList(EventPermissionRequired, Filterable, ListView):
         meta = {
             'tracks': [],
             'content_locales': [],
+            'timezone': event.timezone,
         }
         if schedule:
             meta['tracks'] = list(event.tracks.all().values('id', 'name', 'color'))

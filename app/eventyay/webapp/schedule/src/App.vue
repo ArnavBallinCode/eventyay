@@ -701,7 +701,12 @@ export default {
 			this.onHomeServer = true
 		} else {
 			if (this.isSpeakerView && this.view === 'speakers') {
-				this.schedule = { talks: [], rooms: [], schedule_unavailable: false }
+				let timezone = ''
+				const metaEl = document.getElementById('pretalx-speakers-meta')
+				if (metaEl) {
+					try { timezone = JSON.parse(metaEl.textContent).timezone || '' } catch (e) { /* ignore */ }
+				}
+				this.schedule = { talks: [], rooms: [], timezone, schedule_unavailable: false }
 			} else {
 				try {
 					this.schedule = await fetchWidgetScheduleData(this.eventUrl, {
