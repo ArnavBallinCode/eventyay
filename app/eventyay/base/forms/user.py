@@ -9,6 +9,7 @@ from django.utils.translation import gettext_lazy as _
 from pytz import common_timezones
 
 from eventyay.base.models import User
+from eventyay.common.image import validate_image
 from eventyay.control.forms import SingleLanguageWidget
 
 
@@ -20,6 +21,20 @@ class UserSettingsForm(forms.ModelForm):
         'rate_limit': _('For security reasons, please wait 5 minutes before you try again.'),
     }
 
+    avatar = forms.ImageField(
+        required=False,
+        label=_('Profile picture'),
+        validators=[validate_image],
+        widget=forms.FileInput(attrs={'data-eventyay-file-wrapper': 'disabled'}),
+        help_text=_(
+            'We recommend uploading an image at least 400px wide. '
+            'A square image works best, as we display it in a circle in several places.'
+        ),
+    )
+    clear_avatar = forms.BooleanField(
+        required=False,
+        label=_('Remove profile picture'),
+    )
     old_pw = forms.CharField(
         max_length=255,
         required=False,
@@ -49,7 +64,7 @@ class UserSettingsForm(forms.ModelForm):
 
     class Meta:
         model = User
-        fields = ['fullname', 'wikimedia_username', 'locale', 'timezone', 'email']
+        fields = ['fullname', 'wikimedia_username', 'avatar', 'locale', 'timezone', 'email']
         widgets = {'locale': SingleLanguageWidget}
 
     def __init__(self, *args, **kwargs):
@@ -108,8 +123,18 @@ class UserSettingsForm(forms.ModelForm):
             raise forms.ValidationError(self.error_messages['pw_mismatch'], code='pw_mismatch')
 
     def clean(self):
-        password1 = self.cleaned_data.get('new_pw')
-        old_pw = self.cleaned_data.get('old_pw')
+        cleaned_data = super().clean()
+        has_new_avatar_upload = bool(self.files and self.files.get('avatar'))
+        if cleaned_data.get('clear_avatar') and has_new_avatar_upload:
+            raise forms.ValidationError(
+                _('Cannot upload a new profile picture and remove the existing one at the same time.')
+            )
+
+        if cleaned_data.get('clear_avatar'):
+            cleaned_data['avatar'] = None
+
+        password1 = cleaned_data.get('new_pw')
+        old_pw = cleaned_data.get('old_pw')
 
         if not self.requires_password_reset and password1 and not old_pw:
             raise forms.ValidationError(self.error_messages['pw_current'], code='pw_current')
@@ -117,7 +142,7 @@ class UserSettingsForm(forms.ModelForm):
         if password1:
             self.instance.set_password(password1)
 
-        return self.cleaned_data
+        return cleaned_data
 
 
 class User2FADeviceAddForm(forms.Form):

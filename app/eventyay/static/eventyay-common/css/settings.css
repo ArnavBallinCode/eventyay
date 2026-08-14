@@ -343,3 +343,15 @@
     margin-top: 6px;
     margin-bottom: 0;
 }
+
+.user-avatar-preview {
+    margin-bottom: 12px;
+}
+
+.user-avatar-preview-image {
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+    border-radius: 50%;
+    border: 1px solid #ddd;
+}

@@ -102,11 +102,25 @@ class GeneralSettingsView(LoginRequiredMixin, AccountMenuMixIn, UpdateView):
 
         data = {}
         for k in form.changed_data:
-            if k not in ('old_pw', 'new_pw_repeat'):
+            if k not in ('old_pw', 'new_pw_repeat', 'clear_avatar'):
                 if k == 'new_pw':
                     data['new_pw'] = True
+                elif k == 'avatar':
+                    data['avatar'] = bool(form.cleaned_data.get('avatar'))
                 else:
                     data[k] = form.cleaned_data[k]
+
+        if form.cleaned_data.get('clear_avatar'):
+            if self.object.avatar:
+                self.object.avatar.delete(save=False)
+            if self.object.avatar_thumbnail:
+                self.object.avatar_thumbnail.delete(save=False)
+            if self.object.avatar_thumbnail_tiny:
+                self.object.avatar_thumbnail_tiny.delete(save=False)
+            self.object.avatar = None
+            self.object.avatar_thumbnail = None
+            self.object.avatar_thumbnail_tiny = None
+            data['avatar'] = False
 
         msgs = []
 
@@ -123,6 +137,10 @@ class GeneralSettingsView(LoginRequiredMixin, AccountMenuMixIn, UpdateView):
                 self.request.user.send_security_notice(msgs, email=self._old_email)
 
         sup = super().form_valid(form)
+
+        if 'avatar' in form.changed_data and self.object.avatar and not form.cleaned_data.get('clear_avatar'):
+            self.object.process_image('avatar', generate_thumbnail=True)
+
         self.request.user.log_action('eventyay.user.settings.changed', user=self.request.user, data=data)
 
         update_session_auth_hash(self.request, self.request.user)
