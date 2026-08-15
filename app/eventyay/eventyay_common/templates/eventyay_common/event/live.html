@@ -396,12 +396,28 @@
             </div>
         </div>
     </div>
-    <div class="clear"></div>
-    <div class="text-right">
-        <a href="{% url "eventyay_common:event.update" organizer=request.organizer.slug event=request.event.slug %}#danger-zone-tab"
-                class="btn btn-delete btn-danger btn-default btn-lg">
-            <span class="fa fa-trash"></span>
-            {% trans "Cancel or delete event" %}
-        </a>
+    <!-- Danger Zone Section -->
+    <div class="panel panel-danger status-card" style="border-color: #f5c6cb;">
+        <div class="panel-body">
+            <div class="section-flex-row">
+                <div class="card-content-col">
+                    <div class="card-header-flex">
+                        <i class="fa fa-exclamation-triangle fa-2x text-danger card-icon"></i>
+                        <div>
+                            <h4 class="card-title text-danger"><strong>{% trans "Danger zone" %}</strong></h4>
+                            <p style="margin-top: 10px; margin-bottom: 0;">
+                                {% trans "Cancel this event or delete it completely. This action cannot be undone once completed." %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-action-col">
+                    <a href="{% url "eventyay_common:event.update" organizer=request.organizer.slug event=request.event.slug %}#danger-zone-tab"
+                            class="btn btn-danger btn-custom-margin">
+                        <i class="fa fa-trash"></i> {% trans "Cancel or delete event" %}
+                    </a>
+                </div>
+            </div>
+        </div>
     </div>
 {% endblock %}
