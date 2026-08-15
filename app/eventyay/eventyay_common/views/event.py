@@ -943,14 +943,7 @@ class EventLive(TemplateView):
         ctx['setup_progress'] = components_ready
         ctx['setup_progress_percent'] = int((components_ready / 4) * 100)
         
-        if ctx['setup_progress_percent'] <= 25:
-            ctx['setup_progress_color'] = '#007bff'
-        elif ctx['setup_progress_percent'] <= 50:
-            ctx['setup_progress_color'] = '#ffc107'
-        elif ctx['setup_progress_percent'] <= 75:
-            ctx['setup_progress_color'] = '#17a2b8'
-        else:
-            ctx['setup_progress_color'] = '#28a745'
+        ctx['setup_progress_color'] = '#007bff'
         
         public_pages = []
         if self.request.event.live:
