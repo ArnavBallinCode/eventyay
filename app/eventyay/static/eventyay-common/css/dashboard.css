@@ -321,7 +321,7 @@
         .card-action-col { flex-shrink: 0; display: flex; flex-direction: column; align-items: stretch; gap: 8px; padding-top: 5px; width: 190px; }
         .mode-flex-row { display: flex; align-items: center; gap: 16px; }
         .mode-content-col { flex: 1; min-width: 0; }
-        .mode-action-col { flex-shrink: 0; display: flex; align-items: center; justify-content: flex-end; width: 140px; }
+        .mode-action-col { flex-shrink: 0; display: flex; align-items: center; justify-content: flex-end; width: 190px; }
         .btn-group-right { padding-top: 5px; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
         .form-full-width { display: block; width: 100%; margin: 0; }
         .btn-custom { font-weight: 500; white-space: nowrap; width: 100%; display: flex; justify-content: center; align-items: center; }
