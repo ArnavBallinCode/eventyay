@@ -390,4 +390,12 @@
             </div>
         </div>
     </div>
+    <div class="clear"></div>
+    <div class="text-right">
+        <a href="{% url "eventyay_common:event.update" organizer=request.organizer.slug event=request.event.slug %}#danger-zone-tab"
+                class="btn btn-delete btn-danger btn-default btn-lg">
+            <span class="fa fa-trash"></span>
+            {% trans "Cancel or delete event" %}
+        </a>
+    </div>
 {% endblock %}
