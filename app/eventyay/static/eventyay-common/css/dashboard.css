@@ -337,6 +337,7 @@
         .alert-compact-list { margin-bottom: 0; margin-top: 5px; }
         .info-banner { display: inline-block; background: #f8f9fa; padding: 6px 10px; border-radius: 4px; }
         .warnings-container { margin-left: 50px; margin-top: 25px; border: 1px solid #ffeeba; border-radius: 8px; background: #fff8e1; padding: 18px; }
+        .section-divider { margin: 35px -25px; border-top: 1px solid #eaeaea; }
         .warning-heading { color: #e37400; font-size: 15px; }
         .warning-list { margin-top: 10px; padding-left: 20px; color: #555; font-size: 13px; line-height: 1.5; }
         .warning-item { margin-bottom: 5px; }
