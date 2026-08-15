@@ -313,7 +313,7 @@
         .card-header-flex { display: flex; align-items: flex-start; }
         .card-icon { margin-right: 18px; margin-top: 5px; color: #999; width: 32px; text-align: center; }
         .card-title { margin-top: 0; display: inline-block; margin-right: 12px; font-size: 20px; }
-        .status-label { font-size: 12px; padding: 4px 8px; }
+        .status-label { font-size: 14px; padding: 5px 10px; }
         .alert-custom { margin-left: 50px; margin-top: 15px; border-radius: 6px; }
         .alert-list { margin-bottom: 0; margin-top: 8px; }
         .section-flex-row { display: flex; align-items: flex-start; gap: 24px; }
