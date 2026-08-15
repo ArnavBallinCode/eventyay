@@ -85,18 +85,6 @@ def get_event_navigation(request: HttpRequest, event: Event) -> List[MenuItem]:
     if has_settings_perm:
         nav = [
             {
-                'label': _('Event status'),
-                'url': reverse(
-                    'eventyay_common:event.live',
-                    kwargs={
-                        'event': event.slug,
-                        'organizer': event.organizer.slug,
-                    },
-                ),
-                'active': (url.url_name == 'event.live'),
-                'icon': 'tachometer',
-            },
-            {
                 'label': _('Event settings'),
                 'url': reverse(
                     'eventyay_common:event.update',
@@ -107,6 +95,18 @@ def get_event_navigation(request: HttpRequest, event: Event) -> List[MenuItem]:
                 ),
                 'active': (url.url_name == 'event.update'),
                 'icon': 'wrench',
+            },
+            {
+                'label': _('Event status'),
+                'url': reverse(
+                    'eventyay_common:event.live',
+                    kwargs={
+                        'event': event.slug,
+                        'organizer': event.organizer.slug,
+                    },
+                ),
+                'active': (url.url_name == 'event.live'),
+                'icon': 'tachometer',
             },
             {
                 'label': _('Plugins'),
