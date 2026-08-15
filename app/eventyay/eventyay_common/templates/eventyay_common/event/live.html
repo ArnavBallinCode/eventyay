@@ -126,7 +126,7 @@
                         <i class="fa fa-ticket fa-2x text-muted card-icon"></i>
                         <div>
                             <h4 class="card-title"><strong>{% trans "Event ticketing" %}</strong></h4>
-                            {% if request.event.tickets_published %}
+                            {% if request.event.tickets_published and not request.event.testmode %}
                                 <span class="label label-success status-label">{% trans "Public sales" %}</span>
                             {% elif request.event.testmode %}
                                 <span class="label label-primary status-label">{% trans "Public test mode" %}</span>
