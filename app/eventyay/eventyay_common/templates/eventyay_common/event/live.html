@@ -8,7 +8,7 @@
     
     <div class="row">
         <div class="col-xs-12">
-            <p class="text-muted header-desc">{% trans "Track your event setup and publish when you're ready." %}</p>
+            <p class="lead">{% trans "Track your event setup and publish when you're ready." %}</p>
         </div>
     </div>
 
@@ -16,7 +16,7 @@
     <div class="panel panel-default status-card">
         <div class="panel-body">
             <h5 class="panel-heading-custom"><strong>{% trans "Setup progress" %}</strong></h5>
-            <p class="text-muted">{{ setup_progress }} {% trans "of 4 core components ready" %}</p>
+            <p>{{ setup_progress }} {% trans "of 4 core components ready" %}</p>
             <div class="row progress-row">
                 <div class="col-xs-2 text-center">
                     <div class="progress-circle" style="color: {{ setup_progress_color }}; background: conic-gradient({{ setup_progress_color }} {{ setup_progress_percent }}%, #e9ecef {{ setup_progress_percent }}% 100%);"><span>{{ setup_progress_percent }}%</span></div>
@@ -79,7 +79,7 @@
                             {% else %}
                                 <span class="label label-default status-label">{% trans "Not published" %}</span>
                             {% endif %}
-                            <p class="text-muted card-desc">
+                            <p style="margin-top: 10px;">
                                 {% trans "Create the event landing page where attendees learn about your event and access key details." %}
                                 {% if request.event.live %}
                                     {% trans "The event is currently visible publicly." %}
@@ -134,7 +134,7 @@
                             {% else %}
                                 <span class="label label-default status-label">{% trans "Not published" %}</span>
                             {% endif %}
-                            <p class="text-muted card-desc">
+                            <p style="margin-top: 10px;">
                                 {% trans "Manage ticket types, pricing, and sales settings. You can switch between private test mode and public ticket sales." %}
                                 {% if not ticketing_ready %}
                                     {% trans "Before you can sell tickets you need to set up ticketing and create ticketing options first." %}
@@ -163,7 +163,7 @@
                     <div class="mode-flex-row">
                         <div class="mode-content-col">
                             <strong class="mode-title">1. {% trans "Private ticket test mode" %}</strong>
-                            <p class="text-muted mode-desc">
+                            <p class="help-block" style="margin-bottom: 0;">
                                 {% trans "Only organisers and team members with the required permissions can buy tickets. Tickets/orders created in this mode can later be deleted." %}
                             </p>
                         </div>
@@ -186,7 +186,7 @@
                     <div class="mode-flex-row">
                         <div class="mode-content-col">
                             <strong class="mode-title">2. {% trans "Public ticket test mode" %}</strong>
-                            <p class="text-muted mode-desc-margin">
+                            <p class="help-block">
                                 {% trans "Ticket sales are publicly accessible, but orders are marked as test orders and can later be deleted." %}
                             </p>
                             <div class="warning-banner">
@@ -212,7 +212,7 @@
                     <div class="mode-flex-row">
                         <div class="mode-content-col">
                             <strong class="mode-title">3. {% trans "Public ticket sales" %}</strong>
-                            <p class="text-muted mode-desc">
+                            <p class="help-block" style="margin-bottom: 0;">
                                 {% trans "Tickets are sold publicly as normal orders. Orders must no longer be deletable simply because they were created through the test-mode workflow." %}
                             </p>
                             {% if ticket_issues %}
@@ -257,11 +257,11 @@
                             {% else %}
                                 <span class="label label-warning status-label bg-warning-dark">{% trans "Needs attention" %}</span>
                             {% endif %}
-                            <p class="text-muted card-desc-margin">
+                            <p style="margin-top: 10px;">
                                 {% trans "Publish and manage your agenda, speakers, and sessions." %}
                                 {% trans "In this area you can control the public status of the talk options, call for speakers and schedule." %}
                             </p>
-                            <small class="text-muted info-banner"><i class="fa fa-info-circle text-primary"></i> {% trans "Publishing exposes the Schedule, Sessions, Speakers, and Call for Speakers." %}</small>
+                            <small class="help-block"><i class="fa fa-info-circle text-primary"></i> {% trans "Publishing exposes the Schedule, Sessions, Speakers, and Call for Speakers." %}</small>
                         </div>
                     </div>
                 </div>
@@ -310,7 +310,7 @@
                     <div class="mode-flex-row">
                         <div class="mode-content-col">
                             <strong class="mode-title">1. {% trans "Private test mode" %}</strong>
-                            <p class="text-muted mode-desc">
+                            <p class="help-block" style="margin-bottom: 0;">
                                 {% trans "Only organisers, reviewers and system administrators can access the talk pages. Users with appropriate permissions can propose sessions or add speaker info." %}
                             </p>
                         </div>
@@ -333,7 +333,7 @@
                     <div class="mode-flex-row">
                         <div class="mode-content-col">
                             <strong class="mode-title">2. {% trans "Talks and speaker pages fully public" %}</strong>
-                            <p class="text-muted mode-desc">
+                            <p class="help-block" style="margin-bottom: 0;">
                                 {% trans "The talk component becomes publicly available, including Call for Speakers, Speaker pages, Sessions, and Schedule." %}
                             </p>
                         </div>
@@ -366,7 +366,7 @@
                             {% else %}
                                 <span class="label label-default status-label">{% trans "Not enabled" %}</span>
                             {% endif %}
-                            <p class="text-muted card-desc-no-bottom">
+                            <p style="margin-top: 10px; margin-bottom: 0;">
                                 {% trans "Control whether the Join Online Video link is visible on public pages." %}
                             </p>
                         </div>

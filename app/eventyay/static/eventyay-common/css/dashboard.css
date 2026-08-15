@@ -301,8 +301,6 @@
         .bg-warning-light { background-color: #fef0e3; }
         .text-warning-dark { color: #e37400; }
         .bg-warning-dark { background-color: #e37400; color: #fff; }
-
-        .header-desc { margin-bottom: 20px; font-size: 16px; }
         .panel-heading-custom { margin-top: 0; font-size: 18px; }
         .progress-row { display: flex; align-items: center; justify-content: center; margin-top: 25px; }
         .progress-circle { position: relative; font-size: 24px; font-weight: bold; color: #007bff; border-radius: 50%; width: 85px; height: 85px; display: flex; justify-content: center; align-items: center; margin: 0 auto; background: #e9ecef; }
@@ -316,9 +314,6 @@
         .card-icon { margin-right: 18px; margin-top: 5px; color: #999; width: 32px; text-align: center; }
         .card-title { margin-top: 0; display: inline-block; margin-right: 12px; font-size: 20px; }
         .status-label { font-size: 12px; padding: 4px 8px; }
-        .card-desc { margin-top: 10px; font-size: 14px; line-height: 1.5; }
-        .card-desc-no-bottom { margin-top: 10px; font-size: 14px; margin-bottom: 0; }
-        .card-desc-margin { margin-top: 10px; margin-bottom: 8px; font-size: 14px; line-height: 1.5; }
         .alert-custom { margin-left: 50px; margin-top: 15px; border-radius: 6px; }
         .alert-list { margin-bottom: 0; margin-top: 8px; }
         .section-flex-row { display: flex; align-items: flex-start; gap: 24px; }
@@ -337,8 +332,6 @@
         .modes-heading { margin-bottom: 15px; }
         .mode-row { display: flex; align-items: center; }
         .mode-title { font-size: 15px; }
-        .mode-desc { margin-bottom: 0; margin-top: 6px; font-size: 13px; line-height: 1.4; }
-        .mode-desc-margin { margin-bottom: 10px; margin-top: 6px; font-size: 13px; line-height: 1.4; }
         .warning-banner { background: #fff3cd; border-left: 4px solid #ffeeba; border-radius: 4px; padding: 8px 12px; color: #856404; font-size: 13px; }
         .alert-compact { margin-top: 12px; margin-bottom: 0; padding: 10px; font-size: 13px; }
         .alert-compact-list { margin-bottom: 0; margin-top: 5px; }
