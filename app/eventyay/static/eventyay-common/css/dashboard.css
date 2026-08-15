@@ -287,8 +287,9 @@
             display: inline-block;
             background-color: #e6f4ea;
             color: #1e8e3e;
-            border: 1px solid #cce8d6;
-            font-weight: bold;
+            border: 1px solid #ceead6;
+            font-weight: 500;
+            min-width: 130px;
             cursor: default;
         }
         .bg-success-light { background-color: #e6f4ea; }
@@ -320,9 +321,9 @@
         .card-desc-margin { margin-top: 10px; margin-bottom: 8px; font-size: 14px; line-height: 1.5; }
         .alert-custom { margin-left: 50px; margin-top: 15px; border-radius: 6px; }
         .alert-list { margin-bottom: 0; margin-top: 8px; }
-        .btn-group-right { padding-top: 5px; }
+        .btn-group-right { padding-top: 5px; display: flex; flex-direction: column; align-items: flex-end; }
         .form-full-width { display: inline-block; width: 100%; }
-        .btn-custom { font-weight: 500; }
+        .btn-custom { font-weight: 500; min-width: 130px; }
         .btn.btn-custom { border: 1px solid #ccc; }
         .btn.btn-custom:disabled, .btn.btn-custom[disabled] { border-color: #eee; }
         .btn-custom-margin { margin-bottom: 12px; font-weight: 500; }
