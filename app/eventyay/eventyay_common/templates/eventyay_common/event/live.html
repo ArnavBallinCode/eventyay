@@ -19,7 +19,7 @@
             <p class="text-muted">{{ setup_progress }} {% trans "of 4 core components ready" %}</p>
             <div class="row progress-row">
                 <div class="col-xs-2 text-center">
-                    <div class="progress-circle">{{ setup_progress_percent }}%</div>
+                    <div class="progress-circle" style="color: {{ setup_progress_color }}; border-color: {{ setup_progress_color }};">{{ setup_progress_percent }}%</div>
                     <div class="progress-label">{% trans "Overall readiness" %}</div>
                 </div>
                 <div class="col-xs-10 components-row">
