@@ -169,7 +169,7 @@
                             </p>
                         </div>
                         <div class="mode-action-col">
-                            <form action="" method="post">
+                            <form action="" method="post" class="form-full-width">
                                 {% csrf_token %}
                                 <input type="hidden" name="ticketing_mode" value="private_test">
                                 {% if private_testmode_tickets %}
@@ -195,7 +195,7 @@
                             </div>
                         </div>
                         <div class="mode-action-col">
-                            <form action="" method="post">
+                            <form action="" method="post" class="form-full-width">
                                 {% csrf_token %}
                                 <input type="hidden" name="ticketing_mode" value="public_test">
                                 {% if request.event.testmode %}
@@ -228,7 +228,7 @@
                             {% endif %}
                         </div>
                         <div class="mode-action-col">
-                            <form action="" method="post">
+                            <form action="" method="post" class="form-full-width">
                                 {% csrf_token %}
                                 <input type="hidden" name="ticketing_mode" value="public_sales">
                                 {% if request.event.tickets_published and not request.event.testmode %}
@@ -318,7 +318,7 @@
                             </p>
                         </div>
                         <div class="mode-action-col">
-                            <form action="" method="post">
+                            <form action="" method="post" class="form-full-width">
                                 {% csrf_token %}
                                 <input type="hidden" name="talk_mode" value="private_test">
                                 {% if private_testmode_talks %}
@@ -341,7 +341,7 @@
                             </p>
                         </div>
                         <div class="mode-action-col">
-                            <form action="" method="post">
+                            <form action="" method="post" class="form-full-width">
                                 {% csrf_token %}
                                 <input type="hidden" name="talk_mode" value="public">
                                 {% if request.event.talks_published %}
@@ -379,7 +379,7 @@
                 </div>
                 <div class="card-action-col">
                     {% if is_video_enabled %}
-                        <form action="" method="post">
+                        <form action="" method="post" class="form-full-width">
                             {% csrf_token %}
                             <button type="submit" name="toggle_video_visibility" class="btn btn-default btn-custom">
                                 {% if request.event.settings.venueless_show_public_link %}
