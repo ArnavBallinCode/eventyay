@@ -1274,7 +1274,7 @@ Vue.component('pretix-widget-event-week-calendar', {
     },
 });
 
-Vue.component('pretix-widget', {
+var widgetComponentOptions = {
     template: ('<div class="pretix-widget-wrapper" ref="wrapper">'
         + '<div :class="classObject">'
         + '<resize-observer @notify="handleResize" />'
@@ -1305,9 +1305,11 @@ Vue.component('pretix-widget', {
             return o;
         }
     }
-});
+};
+Vue.component('pretix-widget', widgetComponentOptions);
+Vue.component('eventyay-widget', widgetComponentOptions);
 
-Vue.component('pretix-button', {
+var buttonComponentOptions = {
     template: ('<div class="pretix-widget-wrapper">'
         + '<div class="pretix-widget-button-container">'
         + '<form :method="$root.formMethod" :action="$root.formAction" ref="form" :target="$root.formTarget">'
@@ -1326,7 +1328,9 @@ Vue.component('pretix-button', {
     ),
     data: shared_widget_data,
     methods: shared_methods,
-});
+};
+Vue.component('pretix-button', buttonComponentOptions);
+Vue.component('eventyay-button', buttonComponentOptions);
 
 /* Function to create the actual Vue instances */
 
@@ -1631,7 +1635,10 @@ var create_widget = function (element) {
 
     var tagName = element.tagName.toLowerCase();
     if (tagName !== "eventyay-widget" && tagName !== "pretix-widget") {
-        element.innerHTML = "<eventyay-widget></eventyay-widget>";
+        while (element.firstChild) {
+            element.removeChild(element.firstChild);
+        }
+        element.appendChild(document.createElement("eventyay-widget"));
     }
 
     var app = new Vue({
@@ -1698,7 +1705,7 @@ var create_button = function (element) {
     var raw_items = element.attributes.items ? element.attributes.items.value : "";
     var skip_ssl = element.attributes["skip-ssl-check"] ? true : false;
     var disable_iframe = element.attributes["disable-iframe"] ? true : false;
-    var button_text = element.innerHTML;
+    var button_text = element.textContent;
     var widget_data = JSON.parse(JSON.stringify(window.EventyayWidget.widget_data));
     for (var i = 0; i < element.attributes.length; i++) {
         var attrib = element.attributes[i];
@@ -1709,7 +1716,11 @@ var create_button = function (element) {
 
     var tagName = element.tagName.toLowerCase();
     if (tagName !== "eventyay-button" && tagName !== "pretix-button") {
-        element.innerHTML = "<eventyay-button>" + element.innerHTML + "</eventyay-button>";
+        var btnWrapper = document.createElement("eventyay-button");
+        while (element.firstChild) {
+            btnWrapper.appendChild(element.firstChild);
+        }
+        element.appendChild(btnWrapper);
     }
 
     var itemsplit = raw_items.split(",");
@@ -1790,7 +1801,9 @@ window.EventyayWidget.open = function (target_url, voucher, subevent, items, wid
     var root = document.createElement("div");
     document.body.appendChild(root);
     root.classList.add("pretix-widget-hidden");
-    root.innerHTML = "<pretix-button ref='btn'></pretix-button>";
+    var openBtn = document.createElement("eventyay-button");
+    openBtn.setAttribute("ref", "btn");
+    root.appendChild(openBtn);
     var app = new Vue({
         el: root,
         data: function () {
