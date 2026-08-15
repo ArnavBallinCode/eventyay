@@ -209,7 +209,7 @@
                 </div>
                 
                 <!-- Public Sales -->
-                <div class="mode-card {% if request.event.tickets_published %}active{% endif %}">
+                <div class="mode-card {% if request.event.tickets_published and not request.event.testmode %}active{% endif %}">
                     <div class="mode-flex-row">
                         <div class="mode-content-col">
                             <strong class="mode-title">3. {% trans "Public ticket sales" %}</strong>
