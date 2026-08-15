@@ -26,10 +26,7 @@ class UserSettingsForm(forms.ModelForm):
         label=_('Profile picture'),
         validators=[validate_image],
         widget=forms.FileInput(attrs={'data-eventyay-file-wrapper': 'disabled'}),
-        help_text=_(
-            'We recommend uploading an image at least 400px wide. '
-            'A square image works best, as we display it in a circle in several places.'
-        ),
+        help_text=_('We recommend uploading a square image at least 400px wide.'),
     )
     clear_avatar = forms.BooleanField(
         required=False,
