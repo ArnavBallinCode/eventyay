@@ -68,8 +68,8 @@
     <!-- Event Main Page Card -->
     <div class="panel panel-default status-card">
         <div class="panel-body">
-            <div class="row">
-                <div class="col-xs-8">
+            <div class="section-flex-row">
+                <div class="card-content-col">
                     <div class="card-header-flex">
                         <i class="fa fa-file-text-o fa-2x text-muted card-icon"></i>
                         <div>
@@ -100,7 +100,7 @@
                         </div>
                     {% endif %}
                 </div>
-                <div class="col-xs-4 text-right btn-group-right">
+                <div class="card-action-col">
                     <form action="" method="post" class="flip form-full-width">
                         {% csrf_token %}
                         {% if request.event.live %}
@@ -115,11 +115,12 @@
                 </div>
             </div>
 
+
             <hr class="section-divider">
 
             <!-- Event Ticketing Section -->
-            <div class="row">
-                <div class="col-xs-8">
+            <div class="section-flex-row">
+                <div class="card-content-col">
                     <div class="card-header-flex">
                         <i class="fa fa-ticket fa-2x text-muted card-icon"></i>
                         <div>
@@ -144,7 +145,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-xs-4 text-right btn-group-right">
+                <div class="card-action-col">
                     <a href="{% url "control:event.quick" organizer=request.organizer.slug event=request.event.slug %}" class="btn btn-primary btn-custom-margin">
                         {% trans "Set up tickets" %}
                     </a>
@@ -159,14 +160,14 @@
                 
                 <!-- Private Test Mode -->
                 <div class="mode-card {% if private_testmode_tickets %}active{% endif %}">
-                    <div class="row mode-row">
-                        <div class="col-xs-9">
+                    <div class="mode-flex-row">
+                        <div class="mode-content-col">
                             <strong class="mode-title">1. {% trans "Private ticket test mode" %}</strong>
                             <p class="text-muted mode-desc">
                                 {% trans "Only organisers and team members with the required permissions can buy tickets. Tickets/orders created in this mode can later be deleted." %}
                             </p>
                         </div>
-                        <div class="col-xs-3 text-right">
+                        <div class="mode-action-col">
                             <form action="" method="post">
                                 {% csrf_token %}
                                 <input type="hidden" name="ticketing_mode" value="private_test">
@@ -182,8 +183,8 @@
                 
                 <!-- Public Test Mode -->
                 <div class="mode-card {% if request.event.testmode %}active{% endif %}">
-                    <div class="row mode-row">
-                        <div class="col-xs-9">
+                    <div class="mode-flex-row">
+                        <div class="mode-content-col">
                             <strong class="mode-title">2. {% trans "Public ticket test mode" %}</strong>
                             <p class="text-muted mode-desc-margin">
                                 {% trans "Ticket sales are publicly accessible, but orders are marked as test orders and can later be deleted." %}
@@ -192,7 +193,7 @@
                                 <strong><i class="fa fa-warning"></i> {% trans "Warning:" %}</strong> {% trans "Test orders may still count toward quotas and may trigger real payments." %}
                             </div>
                         </div>
-                        <div class="col-xs-3 text-right">
+                        <div class="mode-action-col">
                             <form action="" method="post">
                                 {% csrf_token %}
                                 <input type="hidden" name="ticketing_mode" value="public_test">
@@ -208,8 +209,8 @@
                 
                 <!-- Public Sales -->
                 <div class="mode-card {% if request.event.tickets_published %}active{% endif %}">
-                    <div class="row mode-row">
-                        <div class="col-xs-9">
+                    <div class="mode-flex-row">
+                        <div class="mode-content-col">
                             <strong class="mode-title">3. {% trans "Public ticket sales" %}</strong>
                             <p class="text-muted mode-desc">
                                 {% trans "Tickets are sold publicly as normal orders. Orders must no longer be deletable simply because they were created through the test-mode workflow." %}
@@ -225,7 +226,7 @@
                                 </div>
                             {% endif %}
                         </div>
-                        <div class="col-xs-3 text-right">
+                        <div class="mode-action-col">
                             <form action="" method="post">
                                 {% csrf_token %}
                                 <input type="hidden" name="ticketing_mode" value="public_sales">
@@ -243,8 +244,8 @@
             <hr class="section-divider">
 
             <!-- Talks Section -->
-            <div class="row">
-                <div class="col-xs-8">
+            <div class="section-flex-row">
+                <div class="card-content-col">
                     <div class="card-header-flex">
                         <i class="fa fa-microphone fa-2x text-muted card-icon"></i>
                         <div>
@@ -264,7 +265,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-xs-4 text-right btn-group-right">
+                <div class="card-action-col">
                     <a href="{% url "eventyay_common:event.update" organizer=request.organizer.slug event=request.event.slug %}#cfp" class="btn btn-primary btn-custom-margin">
                         {% trans "Fix issues" %}
                     </a>
@@ -306,14 +307,14 @@
                 
                 <!-- Private Test Mode Talks -->
                 <div class="mode-card {% if private_testmode_talks %}active{% endif %}">
-                    <div class="row mode-row">
-                        <div class="col-xs-9">
+                    <div class="mode-flex-row">
+                        <div class="mode-content-col">
                             <strong class="mode-title">1. {% trans "Private test mode" %}</strong>
                             <p class="text-muted mode-desc">
                                 {% trans "Only organisers, reviewers and system administrators can access the talk pages. Users with appropriate permissions can propose sessions or add speaker info." %}
                             </p>
                         </div>
-                        <div class="col-xs-3 text-right">
+                        <div class="mode-action-col">
                             <form action="" method="post">
                                 {% csrf_token %}
                                 <input type="hidden" name="talk_mode" value="private_test">
@@ -329,14 +330,14 @@
                 
                 <!-- Public Talks -->
                 <div class="mode-card {% if request.event.talks_published %}active{% endif %}">
-                    <div class="row mode-row">
-                        <div class="col-xs-9">
+                    <div class="mode-flex-row">
+                        <div class="mode-content-col">
                             <strong class="mode-title">2. {% trans "Talks and speaker pages fully public" %}</strong>
                             <p class="text-muted mode-desc">
                                 {% trans "The talk component becomes publicly available, including Call for Speakers, Speaker pages, Sessions, and Schedule." %}
                             </p>
                         </div>
-                        <div class="col-xs-3 text-right">
+                        <div class="mode-action-col">
                             <form action="" method="post">
                                 {% csrf_token %}
                                 <input type="hidden" name="talk_mode" value="public">
@@ -354,8 +355,8 @@
             <hr class="section-divider">
 
             <!-- Video Section -->
-            <div class="row mode-row">
-                <div class="col-xs-8">
+            <div class="section-flex-row">
+                <div class="card-content-col">
                     <div class="card-header-flex">
                         <i class="fa fa-video-camera fa-2x text-muted card-icon"></i>
                         <div>
@@ -371,7 +372,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-xs-4 text-right">
+                <div class="card-action-col">
                     {% if is_video_enabled %}
                         <form action="" method="post">
                             {% csrf_token %}
