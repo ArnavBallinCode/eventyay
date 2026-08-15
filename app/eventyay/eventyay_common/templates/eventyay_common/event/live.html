@@ -69,7 +69,7 @@
     <div class="panel panel-default status-card">
         <div class="panel-body">
             <div class="row">
-                <div class="col-xs-8">
+                <div class="col-xs-9">
                     <div class="card-header-flex">
                         <i class="fa fa-file-text-o fa-2x text-muted card-icon"></i>
                         <div>
@@ -100,7 +100,7 @@
                         </div>
                     {% endif %}
                 </div>
-                <div class="col-xs-4 text-right btn-group-right">
+                <div class="col-xs-3 text-right btn-group-right">
                     <form action="" method="post" class="flip form-full-width">
                         {% csrf_token %}
                         {% if request.event.live %}
@@ -119,7 +119,7 @@
 
             <!-- Event Ticketing Section -->
             <div class="row">
-                <div class="col-xs-8">
+                <div class="col-xs-9">
                     <div class="card-header-flex">
                         <i class="fa fa-ticket fa-2x text-muted card-icon"></i>
                         <div>
@@ -144,7 +144,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-xs-4 text-right btn-group-right">
+                <div class="col-xs-3 text-right btn-group-right">
                     <a href="{% url "control:event.quick" organizer=request.organizer.slug event=request.event.slug %}" class="btn btn-primary btn-block btn-custom-margin">
                         {% trans "Set up tickets" %}
                     </a>
@@ -244,7 +244,7 @@
 
             <!-- Talks Section -->
             <div class="row">
-                <div class="col-xs-8">
+                <div class="col-xs-9">
                     <div class="card-header-flex">
                         <i class="fa fa-microphone fa-2x text-muted card-icon"></i>
                         <div>
@@ -264,7 +264,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-xs-4 text-right btn-group-right">
+                <div class="col-xs-3 text-right btn-group-right">
                     <a href="{% url "eventyay_common:event.update" organizer=request.organizer.slug event=request.event.slug %}#cfp" class="btn btn-primary btn-block btn-custom-margin">
                         {% trans "Fix issues" %}
                     </a>
@@ -355,7 +355,7 @@
 
             <!-- Video Section -->
             <div class="row mode-row">
-                <div class="col-xs-8">
+                <div class="col-xs-9">
                     <div class="card-header-flex">
                         <i class="fa fa-video-camera fa-2x text-muted card-icon"></i>
                         <div>
@@ -371,7 +371,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-xs-4 text-right">
+                <div class="col-xs-3 text-right">
                     {% if is_video_enabled %}
                         <form action="" method="post">
                             {% csrf_token %}
