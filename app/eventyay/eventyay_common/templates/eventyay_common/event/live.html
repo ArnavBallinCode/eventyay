@@ -231,7 +231,7 @@
                             <form action="" method="post">
                                 {% csrf_token %}
                                 <input type="hidden" name="ticketing_mode" value="public_sales">
-                                {% if request.event.tickets_published %}
+                                {% if request.event.tickets_published and not request.event.testmode %}
                                     <div class="btn btn-block active-badge-status"><i class="fa fa-check-circle"></i> {% trans "Active" %}</div>
                                 {% else %}
                                     <button type="submit" class="btn btn-primary btn-block btn-custom" {% if ticket_issues or not ticketing_ready %}disabled{% endif %}>{% trans "Go live" %}</button>

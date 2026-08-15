@@ -1128,7 +1128,7 @@ class EventLive(TemplateView):
                     event.private_testmode = True
                     messages.success(self.request, _('Private test mode is now enabled for tickets.'))
                 elif mode == 'public_test':
-                    event.tickets_published = False
+                    event.tickets_published = True
                     event.settings.private_testmode_tickets = False
                     event.private_testmode = event.settings.get('private_testmode_talks', False, as_type=bool)
                     event.testmode = True
@@ -1144,6 +1144,7 @@ class EventLive(TemplateView):
                     event.settings.private_testmode_tickets = False
                     event.private_testmode = event.settings.get('private_testmode_talks', False, as_type=bool)
                     event.testmode = False
+                    event.cartposition_set.all().delete()
                     messages.success(self.request, _('Tickets are now publicly sold.'))
                 event.save()
                 if previous_private != event.private_testmode:
@@ -1198,6 +1199,7 @@ class EventLive(TemplateView):
                         return redirect(self.request.path)
                     event.talks_published = True
                     event.settings.private_testmode_talks = False
+                    event.settings.talks_testmode = False
                     event.private_testmode = event.settings.get('private_testmode_tickets', True, as_type=bool)
                     messages.success(self.request, _('Talk pages are now published.'))
                 event.save()
