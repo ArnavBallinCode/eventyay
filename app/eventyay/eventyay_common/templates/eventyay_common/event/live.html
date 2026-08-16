@@ -79,7 +79,7 @@
                             {% else %}
                                 <span class="label label-default status-label">{% trans "Not published" %}</span>
                             {% endif %}
-                            <p style="margin-top: 10px;">
+                            <p class="card-description">
                                 {% trans "Create the event landing page where attendees learn about your event and access key details." %}
                                 {% if request.event.live %}
                                     {% trans "The event is currently visible publicly." %}
@@ -135,7 +135,7 @@
                             {% else %}
                                 <span class="label label-default status-label">{% trans "Not published" %}</span>
                             {% endif %}
-                            <p style="margin-top: 10px;">
+                            <p class="card-description">
                                 {% trans "Manage ticket types, pricing, and sales settings. You can switch between private test mode and public ticket sales." %}
                                 {% if not ticketing_ready %}
                                     {% trans "Before you can sell tickets you need to set up ticketing and create ticketing options first." %}
@@ -164,7 +164,7 @@
                     <div class="mode-flex-row">
                         <div class="mode-content-col">
                             <strong class="mode-title">1. {% trans "Private ticket test mode" %}</strong>
-                            <p class="help-block" style="margin-bottom: 0;">
+                            <p class="help-block help-block-compact">
                                 {% trans "Only organisers and team members with the required permissions can buy tickets. Tickets/orders created in this mode can later be deleted." %}
                             </p>
                         </div>
@@ -213,7 +213,7 @@
                     <div class="mode-flex-row">
                         <div class="mode-content-col">
                             <strong class="mode-title">3. {% trans "Public ticket sales" %}</strong>
-                            <p class="help-block" style="margin-bottom: 0;">
+                            <p class="help-block help-block-compact">
                                 {% trans "Tickets are sold publicly as normal orders. Orders must no longer be deletable simply because they were created through the test-mode workflow." %}
                             </p>
                             {% if ticket_issues %}
@@ -260,7 +260,7 @@
                             {% else %}
                                 <span class="label label-warning status-label bg-warning-dark">{% trans "Needs attention" %}</span>
                             {% endif %}
-                            <p style="margin-top: 10px;">
+                            <p class="card-description">
                                 {% trans "Publish and manage your agenda, speakers, and sessions." %}
                                 {% trans "In this area you can control the public status of the talk options, call for speakers and schedule." %}
                             </p>
@@ -313,7 +313,7 @@
                     <div class="mode-flex-row">
                         <div class="mode-content-col">
                             <strong class="mode-title">1. {% trans "Private test mode" %}</strong>
-                            <p class="help-block" style="margin-bottom: 0;">
+                            <p class="help-block help-block-compact">
                                 {% trans "Only organisers, reviewers and system administrators can access the talk pages. Users with appropriate permissions can propose sessions or add speaker info." %}
                             </p>
                         </div>
@@ -336,7 +336,7 @@
                     <div class="mode-flex-row">
                         <div class="mode-content-col">
                             <strong class="mode-title">2. {% trans "Talks and speaker pages fully public" %}</strong>
-                            <p class="help-block" style="margin-bottom: 0;">
+                            <p class="help-block help-block-compact">
                                 {% trans "The talk component becomes publicly available, including Call for Speakers, Speaker pages, Sessions, and Schedule." %}
                             </p>
                         </div>
@@ -371,7 +371,7 @@
                             {% else %}
                                 <span class="label label-default status-label">{% trans "Not enabled" %}</span>
                             {% endif %}
-                            <p style="margin-top: 10px; margin-bottom: 0;">
+                            <p class="card-description-compact">
                                 {% trans "Control whether the Join Online Video link is visible on public pages." %}
                             </p>
                         </div>
@@ -397,7 +397,7 @@
         </div>
     </div>
     <!-- Danger Zone Section -->
-    <div class="panel panel-danger status-card" style="border-color: #f5c6cb;">
+    <div class="panel panel-danger status-card status-card-danger">
         <div class="panel-body">
             <div class="section-flex-row">
                 <div class="card-content-col">
@@ -405,7 +405,7 @@
                         <i class="fa fa-exclamation-triangle fa-2x text-danger card-icon"></i>
                         <div>
                             <h4 class="card-title text-danger"><strong>{% trans "Danger zone" %}</strong></h4>
-                            <p style="margin-top: 10px; margin-bottom: 0;">
+                            <p class="card-description-compact">
                                 {% trans "Cancel this event or delete it completely. This action cannot be undone once completed." %}
                             </p>
                         </div>
