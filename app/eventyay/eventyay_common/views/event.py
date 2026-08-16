@@ -1017,6 +1017,19 @@ class EventLive(TemplateView):
             messages.success(self.request, _('Your event is now online.'))
 
         elif request.POST.get('live') == 'false':
+            if event.tickets_published:
+                messages.error(
+                    self.request,
+                    _('You cannot unpublish the event while tickets are published. Please switch ticketing to private test mode first.'),
+                )
+                return redirect(self.request.path)
+            if event.talks_published:
+                messages.error(
+                    self.request,
+                    _('You cannot unpublish the event while talks are published. Please switch talks to private test mode first.'),
+                )
+                return redirect(self.request.path)
+
             with transaction.atomic():
                 event.live = False
                 event.save()
