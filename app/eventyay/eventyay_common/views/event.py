@@ -1147,6 +1147,9 @@ class EventLive(TemplateView):
                     event.private_testmode = True
                     messages.success(self.request, _('Private test mode is now enabled for tickets.'))
                 elif mode == 'public_test':
+                    if not event.live:
+                        messages.error(self.request, _('Publish the event before testing tickets publicly.'))
+                        return redirect(self.request.path)
                     event.tickets_published = True
                     event.settings.private_testmode_tickets = False
                     event.private_testmode = event.settings.get('private_testmode_talks', False, as_type=bool)

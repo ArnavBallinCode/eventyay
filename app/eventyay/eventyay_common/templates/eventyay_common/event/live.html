@@ -201,7 +201,7 @@
                                 {% if request.event.testmode %}
                                     <div class="btn active-badge-status"><i class="fa fa-check-circle"></i> {% trans "Active" %}</div>
                                 {% else %}
-                                    <button type="submit" class="btn btn-default btn-custom" {% if not ticketing_ready %}disabled{% endif %}>{% trans "Enable" %}</button>
+                                    <button type="submit" class="btn btn-default btn-custom" {% if not ticketing_ready or not request.event.live %}disabled{% endif %}>{% trans "Enable" %}</button>
                                 {% endif %}
                             </form>
                         </div>
@@ -234,7 +234,7 @@
                                 {% if request.event.tickets_published and not request.event.testmode %}
                                     <div class="btn active-badge-status"><i class="fa fa-check-circle"></i> {% trans "Active" %}</div>
                                 {% else %}
-                                    <button type="submit" class="btn btn-primary btn-custom" {% if ticket_issues or not ticketing_ready %}disabled{% endif %}>{% trans "Go live" %}</button>
+                                    <button type="submit" class="btn btn-primary btn-custom" {% if ticket_issues or not ticketing_ready or not request.event.live %}disabled{% endif %}>{% trans "Go live" %}</button>
                                 {% endif %}
                             </form>
                         </div>
