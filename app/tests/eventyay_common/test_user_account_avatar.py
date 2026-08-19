@@ -158,5 +158,3 @@ def test_user_account_clear_avatar_with_existing_avatar_no_conflict(client):
     assert 'Cannot upload a new profile picture' not in response.content.decode('utf-8')
     user.refresh_from_db()
     assert bool(user.avatar) is False
-
-
