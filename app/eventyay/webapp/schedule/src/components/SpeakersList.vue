@@ -42,8 +42,8 @@
 						span.btn-label {{ t.track }}
 						span.filter-dot(v-if="selectedTracks.length")
 					.dropdown-menu(v-if="openDropdown === 'track'")
-						label.dropdown-item(v-for="track in availableTracks", :key="track.id")
-							input(type="checkbox", :value="track.id", v-model="selectedTracks")
+						label.dropdown-item(v-for="track in availableTracks", :key="String(track.id)")
+							input(type="checkbox", :value="String(track.id)", v-model="selectedTracks")
 							span.track-color(v-if="track.color", :style="{'background-color': track.color}")
 							| {{ getLocalizedString(track.name) }}
 						.dropdown-actions(v-if="selectedTracks.length")
@@ -110,7 +110,7 @@
 				.biography(v-if="speaker.biography")
 					markdown-content(:markdown="speaker.biography")
 				.sessions-list(v-if="speaker.sessions && speaker.sessions.length")
-					span.session-title(v-for="(session, s_idx) in speaker.sessions", :key="session.id || s_idx")
+					span.session-title(v-for="(session, s_idx) in speaker.sessions", :key="session.slot_id || session.id || s_idx")
 						| {{ getLocalizedString(session.title) }}
 						span.separator(v-if="s_idx < speaker.sessions.length - 1") ,&nbsp;
 	.speakers-details(v-else-if="filteredSpeakers.length && activeViewMode === 'details'")
@@ -120,8 +120,8 @@
 					summary.featured-speaker-summary
 						.thumbnail
 							img(
-								v-if="speaker.avatar || speaker.avatar_url",
-								:src="speaker.avatar || speaker.avatar_url",
+								v-if="speaker.avatar || speaker.avatar_thumbnail_default || speaker.avatar_url",
+								:src="speaker.avatar || speaker.avatar_thumbnail_default || speaker.avatar_url",
 								:alt="speaker.name || t.speaker_fallback",
 								loading="lazy"
 							)
@@ -138,8 +138,9 @@
 							hr.featured-speaker-divider(v-else)
 							.featured-speaker-sessions
 								h4 {{ t.sessions }}
-								.featured-speaker-session(v-for="session in speaker.sessions", :key="session.id")
+								.featured-speaker-session(v-for="session in speaker.sessions", :key="session.slot_id || session.id")
 									small.featured-speaker-session-time {{ formatSessionDateTime(session) }}
+									small.featured-speaker-session-room(v-if="sessionRoomName(session)") {{ sessionRoomName(session) }}
 									a.featured-speaker-session-link(
 										:href="getSessionLink(session)",
 										:style="getSessionStyle(session)",
@@ -232,7 +233,7 @@ export default {
 			this.selectedLanguages = urlParams.getAll('language')
 		}
 		if (urlParams.has('track')) {
-			this.selectedTracks = urlParams.getAll('track')
+			this.selectedTracks = urlParams.getAll('track').map(String)
 		}
 		const metaEl = document.getElementById('pretalx-speakers-meta')
 		if (metaEl) {
@@ -399,7 +400,9 @@ export default {
 			this.searchQuery = ''
 			this.selectedLanguages = []
 			this.selectedTracks = []
+			this.sortBy = 'featured'
 			this.openDropdown = null
+			this.fetchSpeakers()
 		},
 		toggleDropdown(name) {
 			this.openDropdown = this.openDropdown === name ? null : name
@@ -483,9 +486,22 @@ export default {
 				'--session-color': session?.track?.color || 'var(--pretalx-clr-primary)'
 			}
 		},
+		sessionTimezone() {
+			return this.scheduleData?.timezone || this.metaData?.timezone || ''
+		},
+		sessionHasAmPm() {
+			if (this.scheduleData?.hasAmPm != null) return this.scheduleData.hasAmPm
+			return Boolean(this.metaData?.has_ampm)
+		},
+		sessionRoomName(session) {
+			const room = session?.room
+			if (!room) return ''
+			if (typeof room === 'string') return room
+			return this.getLocalizedString(room.name || '')
+		},
 		formatSessionSlot(session) {
-			const tz = this.scheduleData?.timezone
-			const hasAmPm = this.scheduleData?.hasAmPm
+			const tz = this.sessionTimezone()
+			const hasAmPm = this.sessionHasAmPm()
 			if (!tz || !session?.start || !session?.end) return ''
 			const start = moment.isMoment(session.start) ? session.start : moment.tz(session.start, tz)
 			const end = moment.isMoment(session.end) ? session.end : moment.tz(session.end, tz)
@@ -493,15 +509,12 @@ export default {
 			return `${start.clone().tz(tz).format(fmt)} - ${end.clone().tz(tz).format(fmt)}`
 		},
 		formatSessionDateTime(session) {
-			const tz = this.scheduleData?.timezone
-			const hasAmPm = this.scheduleData?.hasAmPm
+			const tz = this.sessionTimezone()
+			const hasAmPm = this.sessionHasAmPm()
 			if (!tz || !session?.start) return ''
 			const start = moment.isMoment(session.start) ? session.start : moment.tz(session.start, tz)
 			const fmt = hasAmPm ? 'MMM D, YYYY h:mm A' : 'MMM D, YYYY HH:mm'
 			return start.clone().tz(tz).format(fmt)
-		},
-		toggleDropdown(name) {
-			this.openDropdown = this.openDropdown === name ? null : name
 		},
 		setSort(value) {
 			this.sortBy = value
@@ -850,6 +863,12 @@ export default {
 			font-size: 13px
 			line-height: 1.35
 			font-weight: 600
+		.featured-speaker-session-room
+			display: block
+			color: $clr-secondary-text-light
+			margin-bottom: 4px
+			font-size: 12px
+			line-height: 1.35
 
 		.featured-speaker-session-link
 			display: block

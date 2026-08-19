@@ -3,6 +3,7 @@ import json
 import logging
 import random
 import string
+from collections.abc import Iterable, Sequence
 from datetime import UTC, datetime
 from urllib.parse import urlencode
 
@@ -92,6 +93,38 @@ def speaker_public_field_flags(event):
     return include_avatar, include_biography
 
 
+def speaker_public_social_links_enabled(event) -> bool:
+    """Whether public speaker cards may include social links."""
+    try:
+        cfp = event.cfp
+    except ObjectDoesNotExist:
+        return False
+    return bool(getattr(cfp, 'request_social_links', False) and cfp.is_field_public('social_links'))
+
+
+def normalize_locale_code(code: str | None) -> str:
+    if not code:
+        return ''
+    return str(code).strip().lower().replace('_', '-')
+
+
+def matching_content_locales(selected: Sequence[str], available: Iterable[str]) -> list[str]:
+    """Expand language filters so ``en`` also matches ``en-us`` (and vice versa)."""
+    selected_norm = {normalize_locale_code(code) for code in selected if code}
+    selected_primary = {code.split('-', 1)[0] for code in selected_norm if code}
+    matches: list[str] = []
+    seen: set[str] = set()
+    for code in list(selected) + list(available):
+        if not code or code in seen:
+            continue
+        normalized = normalize_locale_code(code)
+        primary = normalized.split('-', 1)[0]
+        if normalized in selected_norm or primary in selected_primary:
+            matches.append(code)
+            seen.add(code)
+    return matches
+
+
 # --- Featured speaker widget payloads (pre-agenda public access) ---
 
 
@@ -112,36 +145,69 @@ def speaker_profile_display_order():
     )
 
 
-def build_speaker_card_avatar(user, event):
-    """Return a responsive avatar URL for a speaker card, or ``None``."""
-    if user.avatar and user.avatar != 'False':
-        default = user.get_avatar_url(event=event, thumbnail='default')
-        if default:
-            return default
-        return user.get_avatar_url(event=event, thumbnail='tiny')
-    external = user.get_avatar_url(event=event)
-    if not external:
-        return None
-    return external
+def build_speaker_card_avatar(user, event) -> dict:
+    """Return avatar URL fields used by the schedule speakers UI."""
+    if not user.has_avatar:
+        return {}
+    return {
+        'avatar': user.get_avatar_url(event=event) or None,
+        'avatar_thumbnail_default': user.get_avatar_url(event=event, thumbnail='default') or None,
+        'avatar_thumbnail_tiny': user.get_avatar_url(event=event, thumbnail='tiny') or None,
+    }
+
+
+def _speaker_session_payload(talk) -> dict:
+    submission = talk.submission
+    start = talk.local_start or talk.start
+    end = talk.local_end or talk.end
+    track = submission.track if submission else None
+    room = talk.room
+    return {
+        'id': submission.code if submission else None,
+        'slot_id': talk.pk,
+        'title': submission.title if submission else talk.description,
+        'start': start.isoformat() if start else None,
+        'end': end.isoformat() if end else None,
+        'track': {
+            'id': str(track.id),
+            'name': track.name,
+            'color': track.color,
+        } if track else None,
+        'room': {
+            'id': str(room.id),
+            'name': room.name,
+        } if room else None,
+        'content_locale': submission.content_locale if submission else '',
+    }
+
+
+def _sort_speaker_sessions(sessions: list[dict]) -> list[dict]:
+    return sorted(
+        sessions,
+        key=lambda session: (
+            session.get('start') is None,
+            session.get('start') or '',
+            session.get('slot_id') or 0,
+        ),
+    )
 
 
 def build_speaker_cards(profiles, event):
-    """Build lightweight per-speaker data for the public speakers overview.
-    
-    Now includes biographies and social links to fully render the grid and detail cards
-    while still avoiding the massive N+1 JSON overhead of the legacy full schedule blob.
+    """Build paginated speaker cards for the public speakers overview.
+
+    Cards keep the fields the Vue speakers UI used from full schedule JSON
+    (biography when public, social links, avatar thumbnails, session times,
+    room, track, and locale) without embedding the entire schedule.
     """
-    include_avatar, _ = speaker_public_field_flags(event)
-    show_social_links = getattr(event.cfp, 'request_social_links', False) and event.cfp.is_field_public('social_links')
+    include_avatar, include_biography = speaker_public_field_flags(event)
+    show_social_links = speaker_public_social_links_enabled(event)
     cards = []
-    
-    # We need to compute sessions for each speaker.
-    # We can fetch talks from the schedule.
+    profile_list = list(profiles)
+
     schedule = event.current_schedule
-    
     talks = []
     if schedule:
-        user_ids = [profile.user_id for profile in profiles]
+        user_ids = [profile.user_id for profile in profile_list]
         talks = list(
             schedule.talks.select_related('submission', 'room', 'submission__track')
             .prefetch_related('submission__speakers')
@@ -157,50 +223,33 @@ def build_speaker_cards(profiles, event):
             .exclude(submission__state=SubmissionStates.DELETED)
             .distinct()
         )
-    
-    # Precompute a lookup dictionary for O(N+M) performance
-    speaker_sessions_map = {}
+
+    speaker_sessions_map: dict[int, list[dict]] = {}
     for talk in talks:
-        if talk.submission:
-            for speaker in talk.submission.speakers.all():
-                speaker_sessions_map.setdefault(speaker.id, []).append({
-                    'id': talk.submission.code,
-                    'title': talk.submission.title,
-                    'start': talk.start.isoformat() if talk.start else None,
-                    'end': talk.end.isoformat() if talk.end else None,
-                    'track': {
-                        'id': talk.submission.track.id,
-                        'name': talk.submission.track.name,
-                        'color': talk.submission.track.color,
-                    } if talk.submission.track else None,
-                    'room': {
-                        'id': talk.room.id,
-                        'name': talk.room.name,
-                    } if talk.room else None,
-                    'content_locale': talk.submission.content_locale,
-                })
+        if not talk.submission:
+            continue
+        session = _speaker_session_payload(talk)
+        for speaker in talk.submission.speakers.all():
+            speaker_sessions_map.setdefault(speaker.id, []).append(session)
 
-    # Prefetch social links to avoid N+1 queries if we need them
-    if show_social_links and hasattr(profiles, 'prefetch_related'):
-        profiles = profiles.prefetch_related('social_links')
-
-    for profile in profiles:
+    for profile in profile_list:
         user = profile.user
-        
         card = {
             'code': user.code,
             'name': user.get_display_name(),
-            'biography': profile.biography,
+            'biography': (profile.biography or '') if include_biography else '',
             'is_featured': bool(profile.is_featured),
             'avatar': None,
-            'sessions': speaker_sessions_map.get(user.id, []),
+            'avatar_thumbnail_default': None,
+            'avatar_thumbnail_tiny': None,
+            'sessions': _sort_speaker_sessions(speaker_sessions_map.get(user.id, [])),
         }
-        if include_avatar and user.has_avatar:
-            card['avatar'] = build_speaker_card_avatar(user, event)
+        if include_avatar:
+            card.update(build_speaker_card_avatar(user, event))
         if show_social_links:
             card['social_links'] = [serialize_social_link(link) for link in profile.social_links.all()]
         cards.append(card)
-        
+
     return cards
 
 

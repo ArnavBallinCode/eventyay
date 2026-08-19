@@ -1,12 +1,13 @@
 import datetime as dt
 import io
 import json
-from urllib.parse import urljoin, urlparse
+from urllib.parse import unquote, urljoin, urlparse
 
 import vobject
 from django.conf import settings
 from django.core.exceptions import SuspiciousFileOperation
 from django.core.files.storage import Storage
+from django.db.models import Q
 from django.http import FileResponse, Http404, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import redirect
 from django.template.loader import get_template
@@ -22,13 +23,16 @@ from eventyay.agenda.export_resources import public_resource_attachments, public
 from eventyay.agenda.views.utils import (
     WipAgendaPreviewPageMixin,
     build_google_calendar_url,
+    build_speaker_cards,
     build_speaker_schedule_json,
+    escape_json_for_script,
     is_public_speakers_empty,
     is_public_speakers_list_empty,
+    matching_content_locales,
     redirect_to_presale_with_warning,
     redirect_when_public_speakers_unavailable,
     speaker_profile_display_order,
-    build_speaker_cards,
+    speaker_public_field_flags,
 )
 from eventyay.base.models import SpeakerProfile, TalkQuestionTarget, User
 from eventyay.common.text.path import safe_filename
@@ -47,30 +51,46 @@ from eventyay.talk_rules.agenda import (
 )
 
 
+def public_speaker_search_q(event, query: str) -> Q:
+    """Search only public, this-event schedule data (name, public bio, visible titles)."""
+    search_q = Q(user__fullname__icontains=query)
+    _, include_biography = speaker_public_field_flags(event)
+    if include_biography:
+        search_q |= Q(biography__icontains=query)
+    schedule = event.current_schedule
+    if schedule:
+        search_q |= Q(
+            user__submissions__event=event,
+            user__submissions__title__icontains=query,
+            user__submissions__slots__schedule=schedule,
+            user__submissions__slots__is_visible=True,
+        )
+    return search_q
+
+
 class SpeakerList(EventPermissionRequired, Filterable, ListView):
     context_object_name = 'speakers'
     template_name = 'agenda/speakers.html'
     permission_required = 'base.list_schedule'
-    default_filters = (
-        'user__fullname__icontains',
-        'biography__icontains',
-        'user__submissions__title__icontains',
-    )
+    default_filters = ()
     paginate_by = 48
 
     def render_to_response(self, context, **response_kwargs):
-        if self.request.GET.get('format') == 'json' or 'application/json' in self.request.headers.get('Accept', ''):
+        if self.request.GET.get('format') == 'json':
             speakers = build_speaker_cards(context['object_list'], self.request.event)
             page_obj = context.get('page_obj')
             next_url = None
             if page_obj and page_obj.has_next():
                 query_dict = self.request.GET.copy()
                 query_dict['page'] = page_obj.next_page_number()
-                next_url = f"{self.request.path}?{query_dict.urlencode()}"
-            return JsonResponse({
-                'results': speakers,
-                'next': next_url
-            })
+                next_url = f'{self.request.path}?{query_dict.urlencode()}'
+            return JsonResponse(
+                {
+                    'results': speakers,
+                    'next': next_url,
+                },
+                encoder=I18nJSONEncoder,
+            )
         return super().render_to_response(context, **response_kwargs)
 
     def has_permission(self):
@@ -86,7 +106,7 @@ class SpeakerList(EventPermissionRequired, Filterable, ListView):
     def get_queryset(self):
         event = self.request.event
         qs = SpeakerProfile.objects.filter(user__in=event.speakers, event=event)
-        qs = qs.select_related('user', 'event', 'event__organizer')
+        qs = qs.select_related('user', 'event', 'event__organizer').prefetch_related('social_links')
         sort = self.request.GET.get('sort')
         if sort == 'a-z':
             qs = qs.order_by('user__fullname', 'pk')
@@ -99,13 +119,18 @@ class SpeakerList(EventPermissionRequired, Filterable, ListView):
 
     def filter_queryset(self, qs):
         qs = super().filter_queryset(qs)
-        schedule = self.request.event.current_schedule
+        event = self.request.event
+        query = self.request.GET.get('q')
+        if query:
+            qs = qs.filter(public_speaker_search_q(event, unquote(query)))
+        schedule = event.current_schedule
         if not schedule:
             return qs
 
         tracks = self.request.GET.getlist('track')
         if tracks:
             qs = qs.filter(
+                user__submissions__event=event,
                 user__submissions__track__in=tracks,
                 user__submissions__slots__schedule=schedule,
                 user__submissions__slots__is_visible=True,
@@ -113,8 +138,14 @@ class SpeakerList(EventPermissionRequired, Filterable, ListView):
 
         languages = self.request.GET.getlist('language')
         if languages:
+            available = schedule.talks.filter(is_visible=True).exclude(
+                submission__content_locale__isnull=True
+            ).exclude(
+                submission__content_locale=''
+            ).values_list('submission__content_locale', flat=True).distinct()
             qs = qs.filter(
-                user__submissions__content_locale__in=languages,
+                user__submissions__event=event,
+                user__submissions__content_locale__in=matching_content_locales(languages, available),
                 user__submissions__slots__schedule=schedule,
                 user__submissions__slots__is_visible=True,
             )
@@ -124,22 +155,25 @@ class SpeakerList(EventPermissionRequired, Filterable, ListView):
         context = super().get_context_data(**kwargs)
         event = self.request.event
         schedule = event.current_schedule
-        
+
         meta = {
             'tracks': [],
             'content_locales': [],
             'timezone': event.timezone,
         }
         if schedule:
-            meta['tracks'] = list(event.tracks.all().values('id', 'name', 'color'))
+            meta['tracks'] = [
+                {'id': str(track.pk), 'name': track.name, 'color': track.color}
+                for track in event.tracks.all()
+            ]
             locales = schedule.talks.filter(is_visible=True).exclude(
                 submission__content_locale__isnull=True
             ).exclude(
                 submission__content_locale=''
             ).values_list('submission__content_locale', flat=True).distinct()
-            meta['content_locales'] = sorted(list(set(locales)))
+            meta['content_locales'] = sorted(set(locales))
 
-        context['speakers_meta_json'] = json.dumps(meta, cls=I18nJSONEncoder)
+        context['speakers_meta_json'] = escape_json_for_script(json.dumps(meta, cls=I18nJSONEncoder))
         return context
 
 
