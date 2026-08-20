@@ -10,7 +10,8 @@ from django.core.files.base import ContentFile
 from django.utils.timezone import now
 from django_countries.fields import Country
 from django_scopes import scope, scopes_disabled
-from pytz import UTC
+import datetime
+UTC = datetime.timezone.utc
 
 from eventyay.base.models import (
     InvoiceAddress,
@@ -5001,3 +5002,24 @@ def test_position_update_question_handling(token_client, organizer, event, order
         answ = op.answers.get()
     assert answ.file
     assert answ.answer.startswith('file://')
+
+
+def test_order_serializers_without_context():
+    """
+    Regression test for #4311 where OpenAPI schema generation would crash due to
+    missing 'request' or 'event' in the serializer context.
+    """
+    from eventyay.api.serializers.order import (
+        CheckinListOrderPositionSerializer,
+        OrderCreateSerializer,
+        OrderSerializer,
+    )
+    import pytest
+    
+    try:
+        OrderSerializer(context={})
+        OrderCreateSerializer(context={})
+        CheckinListOrderPositionSerializer(context={})
+    except KeyError as e:
+        pytest.fail(f"Serializer raised KeyError when initialized without context: {e}")
+

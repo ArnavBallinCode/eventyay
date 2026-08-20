@@ -444,9 +444,19 @@ urlpatterns = [
                     name='event.order.sendmail',
                 ),
                 url(
+                    r'^orders/(?P<code>[0-9A-Z]+)/sendmail/preview$',
+                    orders.OrderMailPreview.as_view(),
+                    name='event.order.sendmail.preview',
+                ),
+                url(
                     r'^orders/(?P<code>[0-9A-Z]+)/(?P<position>[0-9A-Z]+)/sendmail$',
                     orders.OrderPositionSendMail.as_view(),
                     name='event.order.position.sendmail',
+                ),
+                url(
+                    r'^orders/(?P<code>[0-9A-Z]+)/(?P<position>\d+)/sendmail/preview$',
+                    orders.OrderMailPreview.as_view(),
+                    name='event.order.position.sendmail.preview',
                 ),
                 url(
                     r'^orders/(?P<code>[0-9A-Z]+)/(?P<position>\d+)/reinstate$',
@@ -509,7 +519,6 @@ urlpatterns = [
                 url(r'^orders/bulk-action$', orders.OrderBulkAction.as_view(), name='event.orders.bulk_action'),
                 url(r'^orders/$', orders.OrderList.as_view(), name='event.orders'),
                 url(r'^orders/search$', orders.OrderSearch.as_view(), name='event.orders.search'),
-                url(r'^dangerzone/$', event.DangerZone.as_view(), name='event.dangerzone'),
                 url(r'^cancel/$', orders.EventCancel.as_view(), name='event.cancel'),
                 url(r'^shredder/$', shredder.StartShredView.as_view(), name='event.shredder.start'),
                 url(r'^shredder/export$', shredder.ShredExportView.as_view(), name='event.shredder.export'),
