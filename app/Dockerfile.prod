@@ -39,13 +39,15 @@ COPY pyproject.toml uv.lock ./
 RUN --mount=type=cache,target=/root/.cache/uv \
     if [ "$BUILD_MODE" = "dev" ]; then \
       echo "=== Dev build: refreshing plugins (CACHE_BUST=$CACHE_BUST) ===" && \
-      uv sync --no-install-project --no-editable \
+      uv sync --no-install-project --no-editable --refresh \
         --upgrade-package eventyay-paypal \
         --upgrade-package eventyay-stripe \
         --upgrade-package eventyay-bitpay \
         --upgrade-package eventyay-socialmedia \
         --upgrade-package exhibition \
-        --upgrade-package eventyay-teamshifts; \
+        --upgrade-package eventyay-teamshifts \
+        --upgrade-package eventyay-interpretation \
+        --upgrade-package eventyay-hubspot; \
     else \
       echo "=== Production build: using locked dependencies ===" && \
       uv sync --locked --no-install-project --no-editable; \
@@ -53,8 +55,8 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 # Log installed plugin versions for build traceability
 RUN echo "=== Installed plugin versions ===" && \
-    .venv/bin/pip list 2>/dev/null \
-      | grep -iE 'eventyay-paypal|eventyay-stripe|eventyay-bitpay|eventyay-socialmedia|exhibition|eventyay-teamshifts' \
+    uv pip freeze 2>/dev/null \
+      | grep -iE 'eventyay-paypal|eventyay-stripe|eventyay-bitpay|eventyay-socialmedia|exhibition|eventyay-teamshifts|eventyay-interpretation|eventyay-hubspot' \
     || echo "(no plugins found — check build output above)"
 
 COPY Makefile Makefile

@@ -26,6 +26,8 @@ env:
     eventyay-socialmedia
     exhibition
     eventyay-teamshifts
+    eventyay-interpretation
+    eventyay-hubspot
 
 permissions:
   contents: write
@@ -39,10 +41,10 @@ jobs:
       run:
         working-directory: app
     steps:
-      - name: Checkout main branch
+      - name: Checkout dev branch
         uses: actions/checkout@v7
         with:
-          ref: main
+          ref: dev
           # Full history needed for branch operations
           fetch-depth: 0
 
@@ -145,7 +147,7 @@ jobs:
           echo "=== Validating updated lock file ==="
           uv sync --group test --no-editable
           echo "=== Running test collection ==="
-          uv run pytest --collect-only tests/ -q || true
+          uv run pytest --collect-only tests/ -q
 
       - name: Show dry run results
         if: inputs.dry_run == 'true'
@@ -160,7 +162,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           branch: chore/update-plugin-pins
-          base: main
+          base: dev
           title: 'chore: update plugin dependency pins'
           body: |
             ${{ steps.changelog.outputs.body }}

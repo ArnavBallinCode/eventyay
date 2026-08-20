@@ -11,16 +11,18 @@ Plugins
 The following plugins are declared as Git dependencies in
 ``app/pyproject.toml``:
 
-======================  ====================================  =========
-Plugin package          Repository                            Branch
-======================  ====================================  =========
-``eventyay-paypal``     ``fossasia/eventyay-paypal``           ``main``
-``eventyay-stripe``     ``fossasia/eventyay-stripe``           ``main``
-``eventyay-bitpay``     ``fossasia/eventyay-bitpay``           ``main``
-``eventyay-socialmedia``  ``fossasia/eventyay-socialmedia``    ``main``
-``exhibition``          ``fossasia/eventyay-exhibition``       ``main``
-``eventyay-teamshifts`` ``fossasia/eventyay-teamshifts``       ``main``
-======================  ====================================  =========
+=========================  ==========================================  =========
+Plugin package             Repository                                  Branch
+=========================  ==========================================  =========
+``eventyay-paypal``        ``fossasia/eventyay-paypal``                 ``main``
+``eventyay-stripe``        ``fossasia/eventyay-stripe``                 ``main``
+``eventyay-bitpay``        ``fossasia/eventyay-bitpay``                 ``main``
+``eventyay-socialmedia``   ``fossasia/eventyay-socialmedia``            ``dev``
+``exhibition``             ``fossasia/eventyay-exhibition``             ``dev``
+``eventyay-teamshifts``    ``fossasia/eventyay-teamshifts``             ``dev``
+``eventyay-interpretation`` ``fossasia/eventyay-interpretation``        ``dev``
+``eventyay-hubspot``       ``fossasia/eventyay-hubspot``                ``dev``
+=========================  ==========================================  =========
 
 Build Modes
 -----------
@@ -32,7 +34,7 @@ Used when building Docker images for the ``dev`` branch and staging
 deployments.
 
 - Plugins are resolved to the **latest commit** on their configured
-  branch (``main``).
+  branch.
 - ``uv sync --upgrade-package <plugin>`` is run for each plugin,
   bypassing the lockfile pins.
 - A ``CACHE_BUST`` build argument is set to a unique value (e.g. a
