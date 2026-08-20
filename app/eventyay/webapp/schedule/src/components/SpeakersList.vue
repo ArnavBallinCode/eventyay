@@ -21,7 +21,7 @@
 			span.btn-label {{ t.filters }}
 			span.mobile-toggle-badge(v-if="hasActiveFilters")
 		.toolbar-filters(:class="{'open': mobileFiltersOpen}", ref="mobileFiltersPanel")
-			.filter-group(v-if="availableLanguages.length > 0")
+			.filter-group(v-if="availableLanguages.length > 1")
 				.dropdown-wrapper
 					button.filter-btn(@click="toggleDropdown('language')", :class="{'active': selectedLanguages.length}")
 						svg.filter-icon(viewBox="0 0 24 24", fill="currentColor", aria-hidden="true")
@@ -33,7 +33,7 @@
 						label.dropdown-item(v-for="lang in availableLanguages", :key="lang")
 							input(type="checkbox", :value="lang", v-model="selectedLanguages")
 							| {{ formatLanguageLabel(lang) }}
-			.filter-group(v-if="availableTracks.length > 0")
+			.filter-group(v-if="availableTracks.length > 1")
 				.dropdown-wrapper
 					button.filter-btn(@click="toggleDropdown('track')", :class="{'active': selectedTracks.length}")
 						svg.filter-icon(viewBox="0 0 24 24", fill="none", stroke="currentColor", stroke-width="2")
@@ -162,9 +162,20 @@
 
 <script>
 import moment from 'moment-timezone'
-import { getLocalizedString } from '../utils'
+import { getLocalizedString, compareFeaturedSpeakers, isFeaturedSpeakersSortAvailable, sessionsForSpeaker } from '../utils'
 import MarkdownContent from './MarkdownContent'
 import SpeakerSocialLinks from './SpeakerSocialLinks.vue'
+
+function normalizeLocaleCode (code) {
+	if (!code || typeof code !== 'string') return null
+	return code.replace(/_/g, '-').trim().toLowerCase()
+}
+
+function localePrimary (code) {
+	const normalized = normalizeLocaleCode(code)
+	if (!normalized) return null
+	return normalized.split('-')[0] || null
+}
 
 export default {
 	name: 'SpeakersList',
@@ -240,9 +251,10 @@ export default {
 			try { this.metaData = JSON.parse(metaEl.textContent) } catch (e) { /* ignore */ }
 		}
 		
-		if (this.speakers && this.speakers.length > 0) {
-			// Prop provided, do not fetch from API
-		} else {
+		if (!this.featuredSortAvailable && this.sortBy === 'featured') {
+			this.sortBy = 'a-z'
+		}
+		if (!this.usesLocalSpeakers) {
 			this.fetchSpeakers()
 		}
 
@@ -255,16 +267,24 @@ export default {
 		if (sentinel) this.observer.observe(sentinel)
 	},
 	watch: {
-		searchQuery(newVal) {
+		featuredSortAvailable(available) {
+			if (!available && this.sortBy === 'featured') {
+				this.sortBy = 'a-z'
+			}
+		},
+		searchQuery() {
+			if (this.usesLocalSpeakers) return
 			if (this.searchTimeout) clearTimeout(this.searchTimeout)
 			this.searchTimeout = setTimeout(() => {
 				this.updateUrlAndFetch()
 			}, 300)
 		},
 		selectedLanguages() {
+			if (this.usesLocalSpeakers) return
 			this.updateUrlAndFetch()
 		},
 		selectedTracks() {
+			if (this.usesLocalSpeakers) return
 			this.updateUrlAndFetch()
 		},
 		nextPageUrl() {
@@ -312,48 +332,154 @@ export default {
 				more: m.more || 'More',
 			}
 		},
+		usesLocalSpeakers() {
+			if (this.speakers?.length) return true
+			if (this.scheduleData?.scheduleLoaded != null) return true
+			if (this.scheduleData?.schedule?.speakers?.length) return true
+			return Boolean((this.scheduleData?.schedule?.talks || []).length)
+		},
 		availableLanguages() {
-			if (this.metaData && this.metaData.content_locales) {
+			if (this.metaData?.content_locales?.length) {
 				return this.metaData.content_locales
 			}
-			return []
+			const locales = (this.scheduleData?.schedule?.content_locales || []).filter(Boolean)
+			if (locales.length) return [...new Set(locales)].sort()
+			const langs = new Set()
+			for (const talk of this.rawTalks) {
+				if (talk.content_locale) langs.add(talk.content_locale)
+			}
+			return [...langs].sort()
 		},
 		availableTracks() {
-			if (this.metaData && this.metaData.tracks) {
+			if (this.metaData?.tracks?.length) {
 				return this.metaData.tracks
 			}
-			return []
+			return this.scheduleData?.schedule?.tracks || []
+		},
+		rawTalks() {
+			return this.scheduleData?.schedule?.talks || []
+		},
+		resolvedSessions() {
+			return this.scheduleData?.sessions || []
 		},
 		hasActiveFilters() {
 			return Boolean(this.searchQuery) || this.selectedLanguages.length > 0 || this.selectedTracks.length > 0
 		},
+		featuredSortAvailable() {
+			if (this.usesLocalSpeakers) {
+				return isFeaturedSpeakersSortAvailable({
+					flags: this.scheduleData?.schedule?.feature_flags || {},
+					speakers: this.speakers?.length ? this.speakers : (this.scheduleData?.schedule?.speakers || []),
+				})
+			}
+			return isFeaturedSpeakersSortAvailable({
+				flags: this.metaData?.feature_flags || {},
+				speakers: this.metaData?.has_featured_speakers ? [{ is_featured: true }] : [],
+			})
+		},
 		sortOptions() {
 			const options = [
-				{ value: 'featured', label: this.t.featured },
 				{ value: 'a-z', label: this.t.a_to_z },
 				{ value: 'z-a', label: this.t.z_to_a },
 			]
+			if (this.featuredSortAvailable) {
+				options.unshift({ value: 'featured', label: this.t.featured })
+			}
 			return options
 		},
 		currentSortLabel() {
 			const opt = this.sortOptions.find(o => o.value === this.sortBy)
 			return opt ? opt.label : this.t.a_to_z
 		},
-		filteredSpeakers() {
-			if (this.speakers && this.speakers.length > 0) {
-				let list = [...this.speakers]
-				if (this.searchQuery) {
-					const q = this.searchQuery.toLowerCase()
-					list = list.filter(s => (s.name || s.public_name || '').toLowerCase().includes(q))
+		resolvedSpeakers() {
+			if (this.speakers?.length) return this.speakers
+			if (!this.scheduleData) return []
+			const schedule = this.scheduleData.schedule
+			let sessionsBySpeaker = this.scheduleData.sessionsBySpeaker || {}
+			if (!Object.keys(sessionsBySpeaker).length) {
+				const talks = this.resolvedSessions.length ? this.resolvedSessions : this.rawTalks
+				sessionsBySpeaker = talks
+					.flatMap((talk) => (talk.speakers || []).map((sp) => [this.speakerCodeFromAny(sp), talk]))
+					.reduce((acc, [code, talk]) => {
+						if (!code) return acc
+						if (!acc[code]) acc[code] = []
+						acc[code].push(talk)
+						return acc
+					}, {})
+			}
+			return (schedule?.speakers || []).map(speaker => ({
+				...speaker,
+				sessions: sessionsForSpeaker(sessionsBySpeaker, speaker.code),
+			}))
+		},
+		trackFilteredSpeakers() {
+			if (!this.selectedTracks.length) return this.resolvedSpeakers
+			const trackSet = new Set(this.selectedTracks.map(String))
+			return this.resolvedSpeakers.filter(speaker => {
+				for (const s of (speaker.sessions || [])) {
+					if (trackSet.has(String(s?.track?.id ?? s?.track))) return true
 				}
-				if (this.sortBy === 'a-z') list.sort((a, b) => (a.name || a.public_name || '').localeCompare(b.name || b.public_name))
-				else if (this.sortBy === 'z-a') list.sort((a, b) => (b.name || b.public_name || '').localeCompare(a.name || a.public_name))
-				return list
+				return false
+			})
+		},
+		languageFilteredSpeakers() {
+			if (!this.selectedLanguages.length) return this.trackFilteredSpeakers
+			const fallbackLocale = this.scheduleData?.schedule?.content_locales?.[0] || null
+			const selectedExact = new Set(this.selectedLanguages.map(normalizeLocaleCode).filter(Boolean))
+			const selectedPrimary = new Set(
+				this.selectedLanguages
+					.map(localePrimary)
+					.filter(Boolean)
+			)
+			return this.trackFilteredSpeakers.filter(speaker => {
+				for (const s of (speaker.sessions || [])) {
+					const sessionLocale = s?.content_locale || fallbackLocale
+					if (!sessionLocale) continue
+					const normalized = normalizeLocaleCode(sessionLocale)
+					if (!normalized) continue
+					if (selectedExact.has(normalized)) return true
+					const primary = localePrimary(normalized)
+					if (primary && selectedPrimary.has(primary)) return true
+				}
+				return false
+			})
+		},
+		sortedSpeakers() {
+			const speakers = [...this.languageFilteredSpeakers]
+			const byName = (a, b, dir = 1) => {
+				const an = (a.name || '').trim()
+				const bn = (b.name || '').trim()
+				if (!!an !== !!bn) return an ? -1 : 1
+				return dir * an.localeCompare(bn)
+			}
+			if (this.sortBy === 'featured') {
+				return speakers.sort((a, b) => compareFeaturedSpeakers(a, b, { featuredFirst: true }))
+			}
+			if (this.sortBy === 'a-z') {
+				return speakers.sort((a, b) => byName(a, b))
+			}
+			if (this.sortBy === 'z-a') {
+				return speakers.sort((a, b) => byName(a, b, -1))
+			}
+			return speakers.sort((a, b) => byName(a, b))
+		},
+		filteredSpeakers() {
+			if (this.usesLocalSpeakers) {
+				if (!this.searchQuery) return this.sortedSpeakers
+				const q = this.searchQuery.toLowerCase()
+				return this.sortedSpeakers.filter(speaker => {
+					const name = (speaker.name || '').toLowerCase()
+					const bio = (speaker.biography || '').toLowerCase()
+					const sessionTitles = (speaker.sessions || [])
+						.map(s => (getLocalizedString(s.title) || '').toLowerCase())
+						.join(' ')
+					return [name, bio, sessionTitles].some(f => f.includes(q))
+				})
 			}
 			return this.speakersFromApi
 		},
 		hasMore() {
-			return this.speakers && this.speakers.length > 0 ? false : !!this.nextPageUrl
+			return this.usesLocalSpeakers ? false : !!this.nextPageUrl
 		}
 	},
 	methods: {
@@ -373,6 +499,7 @@ export default {
 			this.closeToolbarOverlays()
 		},
 		updateUrlAndFetch() {
+			if (this.usesLocalSpeakers) return
 			const url = new URL(window.location.href)
 			if (this.searchQuery) url.searchParams.set('q', this.searchQuery)
 			else url.searchParams.delete('q')
@@ -400,9 +527,9 @@ export default {
 			this.searchQuery = ''
 			this.selectedLanguages = []
 			this.selectedTracks = []
-			this.sortBy = 'featured'
+			this.sortBy = this.featuredSortAvailable ? 'featured' : 'a-z'
 			this.openDropdown = null
-			this.fetchSpeakers()
+			if (!this.usesLocalSpeakers) this.fetchSpeakers()
 		},
 		toggleDropdown(name) {
 			this.openDropdown = this.openDropdown === name ? null : name
@@ -440,7 +567,7 @@ export default {
 			this.onSessionLinkClick(event, session)
 		},
 		async fetchSpeakers(url = null, append = false) {
-			if (this.speakers && this.speakers.length > 0) return
+			if (this.usesLocalSpeakers) return
 			if (this.isLoadingMore && append) return
 			this.isLoadingMore = true
 			this.loadError = false
@@ -471,10 +598,12 @@ export default {
 				if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`)
 				const data = await res.json()
 				this.speakersFromApi = append ? this.speakersFromApi.concat(data.results) : data.results
-				this.nextPageUrl = data.next || null
+				this.nextPageUrl = data.next
+					? new URL(data.next, this.eventUrl || window.location.origin).toString()
+					: null
 			} catch (e) {
 				if (e.name !== 'AbortError') {
-					console.error("Failed to load speakers", e)
+					console.error('Failed to load speakers', e)
 					this.loadError = true
 				}
 			} finally {
@@ -519,7 +648,7 @@ export default {
 		setSort(value) {
 			this.sortBy = value
 			this.openDropdown = null
-			this.fetchSpeakers()
+			if (!this.usesLocalSpeakers) this.fetchSpeakers()
 		},
 
 		toggleView() {

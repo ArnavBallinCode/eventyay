@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 from urllib.parse import urlencode
 
 from django.contrib import messages
+from django.contrib.auth.models import AnonymousUser
 from django.core.exceptions import ObjectDoesNotExist
 from django.core import signing
 from django.core.cache import cache
@@ -102,6 +103,14 @@ def speaker_public_social_links_enabled(event) -> bool:
     return bool(getattr(cfp, 'request_social_links', False) and cfp.is_field_public('social_links'))
 
 
+def speaker_public_content_locale_enabled(event) -> bool:
+    """Whether public speaker cards may include session content locales."""
+    try:
+        return bool(event.cfp.public_content_locale)
+    except ObjectDoesNotExist:
+        return False
+
+
 def normalize_locale_code(code: str | None) -> str:
     if not code:
         return ''
@@ -156,12 +165,15 @@ def build_speaker_card_avatar(user, event) -> dict:
     }
 
 
-def _speaker_session_payload(talk) -> dict:
+def _speaker_session_payload(talk, *, show_content_locale=True) -> dict:
     submission = talk.submission
     start = talk.local_start or talk.start
     end = talk.local_end or talk.end
     track = submission.track if submission else None
     room = talk.room
+    content_locale = ''
+    if show_content_locale and submission:
+        content_locale = submission.content_locale or ''
     return {
         'id': submission.code if submission else None,
         'slot_id': talk.pk,
@@ -177,7 +189,7 @@ def _speaker_session_payload(talk) -> dict:
             'id': str(room.id),
             'name': room.name,
         } if room else None,
-        'content_locale': submission.content_locale if submission else '',
+        'content_locale': content_locale,
     }
 
 
@@ -201,6 +213,8 @@ def build_speaker_cards(profiles, event):
     """
     include_avatar, include_biography = speaker_public_field_flags(event)
     show_social_links = speaker_public_social_links_enabled(event)
+    show_content_locale = speaker_public_content_locale_enabled(event)
+    include_featured = include_public_featured_speaker_metadata(AnonymousUser(), event)
     cards = []
     profile_list = list(profiles)
 
@@ -228,17 +242,19 @@ def build_speaker_cards(profiles, event):
     for talk in talks:
         if not talk.submission:
             continue
-        session = _speaker_session_payload(talk)
+        session = _speaker_session_payload(talk, show_content_locale=show_content_locale)
         for speaker in talk.submission.speakers.all():
             speaker_sessions_map.setdefault(speaker.id, []).append(session)
 
     for profile in profile_list:
         user = profile.user
+        is_featured = bool(profile.is_featured) if include_featured else False
         card = {
             'code': user.code,
-            'name': user.get_display_name(),
+            'name': user.fullname or None,
             'biography': (profile.biography or '') if include_biography else '',
-            'is_featured': bool(profile.is_featured),
+            'is_featured': is_featured,
+            'featured_position': profile.position if is_featured else None,
             'avatar': None,
             'avatar_thumbnail_default': None,
             'avatar_thumbnail_tiny': None,

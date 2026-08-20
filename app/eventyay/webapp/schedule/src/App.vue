@@ -706,7 +706,7 @@ export default {
 				if (metaEl) {
 					try { timezone = JSON.parse(metaEl.textContent).timezone || '' } catch (e) { /* ignore */ }
 				}
-				this.schedule = { talks: [], rooms: [], timezone, schedule_unavailable: false }
+				this.schedule = { talks: [], speakers: [], rooms: [], timezone, schedule_unavailable: false }
 			} else {
 				try {
 					this.schedule = await fetchWidgetScheduleData(this.eventUrl, {

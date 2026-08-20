@@ -32,6 +32,7 @@ from eventyay.agenda.views.utils import (
     redirect_to_presale_with_warning,
     redirect_when_public_speakers_unavailable,
     speaker_profile_display_order,
+    speaker_public_content_locale_enabled,
     speaker_public_field_flags,
 )
 from eventyay.base.models import SpeakerProfile, TalkQuestionTarget, User
@@ -83,7 +84,7 @@ class SpeakerList(EventPermissionRequired, Filterable, ListView):
             if page_obj and page_obj.has_next():
                 query_dict = self.request.GET.copy()
                 query_dict['page'] = page_obj.next_page_number()
-                next_url = f'{self.request.path}?{query_dict.urlencode()}'
+                next_url = self.request.build_absolute_uri(f'{self.request.path}?{query_dict.urlencode()}')
             return JsonResponse(
                 {
                     'results': speakers,
@@ -137,7 +138,7 @@ class SpeakerList(EventPermissionRequired, Filterable, ListView):
             )
 
         languages = self.request.GET.getlist('language')
-        if languages:
+        if languages and speaker_public_content_locale_enabled(event):
             available = schedule.talks.filter(is_visible=True).exclude(
                 submission__content_locale__isnull=True
             ).exclude(
@@ -160,18 +161,28 @@ class SpeakerList(EventPermissionRequired, Filterable, ListView):
             'tracks': [],
             'content_locales': [],
             'timezone': event.timezone,
+            'feature_flags': event.schedule_client_feature_flags(),
+            'has_featured_speakers': SpeakerProfile.objects.filter(
+                event=event,
+                user__in=event.speakers,
+                is_featured=True,
+            ).exists(),
         }
         if schedule:
             meta['tracks'] = [
                 {'id': str(track.pk), 'name': track.name, 'color': track.color}
-                for track in event.tracks.all()
+                for track in event.tracks.filter(
+                    submissions__slots__schedule=schedule,
+                    submissions__slots__is_visible=True,
+                ).distinct()
             ]
-            locales = schedule.talks.filter(is_visible=True).exclude(
-                submission__content_locale__isnull=True
-            ).exclude(
-                submission__content_locale=''
-            ).values_list('submission__content_locale', flat=True).distinct()
-            meta['content_locales'] = sorted(set(locales))
+            if speaker_public_content_locale_enabled(event):
+                locales = schedule.talks.filter(is_visible=True).exclude(
+                    submission__content_locale__isnull=True
+                ).exclude(
+                    submission__content_locale=''
+                ).values_list('submission__content_locale', flat=True).distinct()
+                meta['content_locales'] = sorted(set(locales))
 
         context['speakers_meta_json'] = escape_json_for_script(json.dumps(meta, cls=I18nJSONEncoder))
         return context

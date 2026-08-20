@@ -4,6 +4,7 @@ import pytest
 from django_scopes import scope
 from i18nfield.strings import LazyI18nString
 
+from eventyay.agenda.views.speaker import SpeakerList
 from eventyay.agenda.views.utils import matching_content_locales
 from eventyay.base.models import SpeakerProfile, SpeakerSocialLink, Submission
 
@@ -59,6 +60,7 @@ def test_speakers_json_keeps_session_and_profile_fields(client, event, speaker, 
     assert payload['next'] is None
     card = next(item for item in payload['results'] if item['code'] == speaker.code)
     assert card['name'] == speaker.fullname
+    assert card['featured_position'] is None
     assert card['biography'] == 'Best speaker in the world.'
     assert card['avatar_thumbnail_tiny'] is None
     assert card['avatar_thumbnail_default'] is None
@@ -167,7 +169,8 @@ def test_speakers_json_track_filter_and_string_ids(client, event, speaker, slot,
 
     html = client.get(event.urls.speakers, follow=True)
     meta = json.loads(html.context['speakers_meta_json'])
-    assert {item['id'] for item in meta['tracks']} == {str(track.pk), str(other_track.pk)}
+    assert str(track.pk) in {item['id'] for item in meta['tracks']}
+    assert str(other_track.pk) not in {item['id'] for item in meta['tracks']}
 
 
 @pytest.mark.django_db
@@ -194,3 +197,50 @@ def test_speakers_html_does_not_switch_on_json_accept_header(client, event, spea
     response = client.get(event.urls.speakers, HTTP_ACCEPT='application/json')
     assert response.status_code == 200
     assert response['Content-Type'].startswith('text/html')
+
+
+@pytest.mark.django_db
+def test_speakers_json_omits_unnamed_speaker_email(client, event, speaker, slot):
+    _publish_speakers_page(event)
+    with scope(event=event):
+        speaker.fullname = ''
+        speaker.save(update_fields=['fullname'])
+
+    card = next(item for item in _speakers_json(client, event)['results'] if item['code'] == speaker.code)
+    assert card['name'] is None
+    assert speaker.email not in json.dumps(card)
+
+
+@pytest.mark.django_db
+def test_speakers_json_hides_private_content_locale(client, event, speaker, slot):
+    _publish_speakers_page(event)
+    with scope(event=event):
+        slot.submission.content_locale = 'en-us'
+        slot.submission.save()
+        fields = dict(event.cfp.fields)
+        content_locale = dict(fields.get('content_locale') or {})
+        content_locale['public'] = False
+        fields['content_locale'] = content_locale
+        event.cfp.fields = fields
+        event.cfp.save()
+
+    payload = _speakers_json(client, event, language='en')
+    card = next(item for item in payload['results'] if item['code'] == speaker.code)
+    assert card['sessions'][0]['content_locale'] == ''
+    html = client.get(event.urls.speakers, follow=True)
+    meta = json.loads(html.context['speakers_meta_json'])
+    assert meta['content_locales'] == []
+
+
+@pytest.mark.django_db
+def test_speakers_json_next_url_is_absolute(client, event, speaker, other_speaker, slot, monkeypatch):
+    _publish_speakers_page(event)
+    monkeypatch.setattr(SpeakerList, 'paginate_by', 1)
+    with scope(event=event):
+        slot.submission.speakers.add(other_speaker)
+
+    payload = _speakers_json(client, event)
+    assert payload['next']
+    assert payload['next'].startswith('http')
+    assert 'format=json' in payload['next']
+    assert 'page=2' in payload['next']
