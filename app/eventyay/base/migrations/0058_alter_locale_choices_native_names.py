@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('base', '0056_global_plugin_config'),
+        ('base', '0057_user_default_organizer'),
     ]
 
     operations = [
