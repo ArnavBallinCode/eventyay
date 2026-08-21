@@ -159,6 +159,7 @@ class BaseSettings(_BaseSettings):
     call_for_speaker_login_button_label: str = 'default'
     # Set to 1 to enable Vite dev servers with HMR for live frontend development.
     npm_dev: bool = False
+    fetch_ecb_rates: bool = True
 
     @classmethod
     def settings_customise_sources(
@@ -254,6 +255,7 @@ conf = BaseSettings()
 DEBUG = conf.debug
 SECRET_KEY = conf.secret_key
 DATABASE_REPLICA = 'default'
+FETCH_ECB_RATES = conf.fetch_ecb_rates
 
 DATA_DIR = BASE_DIR / 'data'
 LOG_DIR = DATA_DIR / 'logs'
@@ -441,10 +443,12 @@ _LIBRARY_MIDDLEWARES = (
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.locale.LocaleMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'eventyay.base.middleware.LoadSheddingMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'eventyay.middleware.block_404.Block404Middleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'allauth.account.middleware.AccountMiddleware',
@@ -455,6 +459,7 @@ if DEBUG and importlib.util.find_spec('debug_toolbar'):
 
 _OURS_MIDDLEWARES = (
     'eventyay.base.middleware.CustomCommonMiddleware',
+    'eventyay.base.middleware.GloballyDisabledPluginMiddleware',
     'eventyay.common.middleware.SessionMiddleware',  # Add session handling
     'eventyay.common.middleware.MultiDomainMiddleware',  # Check which host is used and if it is valid
     'eventyay.common.middleware.EventPermissionMiddleware',  # Sets locales, request.event, available events, etc.
@@ -1009,11 +1014,30 @@ _LANGUAGES_CONFIG = {
 }
 
 # Derive legacy variables from _LANGUAGES_CONFIG for backward compatibility
-ALL_LANGUAGES = [(code, info['name']) for code, info in _LANGUAGES_CONFIG.items()]
+def _build_all_languages():
+    result = []
+    for code, info in _LANGUAGES_CONFIG.items():
+        natural_name = info.get('natural_name', '')
+        name_obj = info['name']
+        english_name = name_obj._args[0] if hasattr(name_obj, '_args') and name_obj._args else natural_name
+        if natural_name.strip().casefold() == english_name.strip().casefold():
+            label = natural_name
+        else:
+            label = f'\u200e{natural_name} ({english_name})'
+        result.append((code, label))
+    return result
+
+
+ALL_LANGUAGES = _build_all_languages()
 
 LANGUAGES_OFFICIAL = {code for code, info in _LANGUAGES_CONFIG.items() if info.get('official', False)}
 LANGUAGES_INCUBATING = {code for code, info in _LANGUAGES_CONFIG.items() if info.get('incubating', False)}
 LANGUAGES_RTL = {code for code, info in _LANGUAGES_CONFIG.items() if info.get('bidi', False)}
+
+# Override Django's LANGUAGES_BIDI so i18n form inputs always render dir="ltr".
+# This keeps placeholders left-aligned for RTL languages while browsers still
+# auto-detect RTL characters for typed content (Unicode bidi algorithm handles it).
+LANGUAGES_BIDI = []
 
 # TODO: Convert to tuple (some code still assumes LANGUAGES to be a list)
 LANGUAGES = (
@@ -1039,41 +1063,57 @@ django.conf.locale.LANG_INFO.update(EXTRA_LANG_INFO)
 # This maintains backward compatibility with existing code
 LANGUAGES_INFORMATION = _LANGUAGES_CONFIG
 
-# Use Redis for caching
+# Documentation imports Django modules through autodoc. Keep those imports
+# deterministic: documentation builds must not require a live Redis service or
+# a Celery broker just to render Python API pages.
+DOCS_BUILD = os.getenv('EVY_DOCS_BUILD') == '1'
+
+# Use Redis for caching in normal application environments. Sphinx uses local
+# memory caches so importing forms and views does not contact external services.
 REDIS_URL = conf.redis_url
 
-CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
-        'LOCATION': REDIS_URL,
-    },
-    'process': {
-        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
-        'LOCATION': REDIS_URL,
-    },
-    # TODO: Remove. Use the 'default' cache everywhere.
-    'redis': {
-        'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': REDIS_URL,
-        'OPTIONS': {
-            'REDIS_CLIENT_KWARGS': {'health_check_interval': 30},
+CACHES = (
+    {
+        name: {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': f'eventyay-docs-{name}',
+        }
+        for name in ('default', 'process', 'redis')
+    }
+    if DOCS_BUILD
+    else {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+            'LOCATION': REDIS_URL,
         },
-    },
-}
+        'process': {
+            'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+            'LOCATION': REDIS_URL,
+        },
+        # TODO: Remove. Use the 'default' cache everywhere.
+        'redis': {
+            'BACKEND': 'django_redis.cache.RedisCache',
+            'LOCATION': REDIS_URL,
+            'OPTIONS': {
+                'REDIS_CLIENT_KWARGS': {'health_check_interval': 30},
+            },
+        },
+    }
+)
 
 # Use Redis for session storage
 SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
 
 # TODO: Remove. Redis is always required.
-HAS_REDIS = bool(REDIS_URL)
+HAS_REDIS = bool(REDIS_URL) and not DOCS_BUILD
 
 # TODO: Remove. Always use Redis Pub/Sub for Channels.
-REDIS_USE_PUBSUB = True
+REDIS_USE_PUBSUB = not DOCS_BUILD
 
 HAS_CELERY = True
-CELERY_BROKER_URL = increase_redis_db(REDIS_URL, 1)
-CELERY_RESULT_BACKEND = increase_redis_db(REDIS_URL, 2)
-CELERY_TASK_ALWAYS_EAGER = conf.celery_always_eager
+CELERY_BROKER_URL = 'memory://' if DOCS_BUILD else increase_redis_db(REDIS_URL, 1)
+CELERY_RESULT_BACKEND = 'cache+memory://' if DOCS_BUILD else increase_redis_db(REDIS_URL, 2)
+CELERY_TASK_ALWAYS_EAGER = True if DOCS_BUILD else conf.celery_always_eager
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TASK_DEFAULT_QUEUE = 'default'
@@ -1099,6 +1139,14 @@ CELERY_WORKER_REDIRECT_STDOUTS = False
 CELERY_TASK_ROUTES = {
     'eventyay.base.services.notifications.*': {'queue': 'notifications'},
     'eventyay.api.webhooks.*': {'queue': 'notifications'},
+    'eventyay.plugins.badges.tasks.*': {'queue': 'longrunning'},
+    'eventyay.base.services.export.*': {'queue': 'longrunning'},
+    'eventyay.base.services.orderimport.*': {'queue': 'longrunning'},
+    'eventyay.features.importers.tasks.*': {'queue': 'longrunning'},
+    'eventyay.base.services.tickets.generate': {'queue': 'longrunning'},
+    'eventyay.base.services.tickets.invalidate_cache': {'queue': 'longrunning'},
+    # Registered name in eventyay.agenda.tasks (legacy pretalx namespace).
+    'pretalx.agenda.export_schedule_html': {'queue': 'longrunning'},
 }
 
 # The folder where static files are collected to. It is shared with Nginx.
@@ -1261,7 +1309,7 @@ ACCOUNT_SIGNUP_FIELDS = ['email*', 'password1*', 'password2*']
 ACCOUNT_USER_MODEL_USERNAME_FIELD = None
 # 'mandatory' means allauth's own login view (/accounts/login/) will block unverified users.
 # Existing users who registered before email verification was enforced may be affected if they
-# use that URL. Our custom login view (eventyay_common:auth.login) does not enforce this,
+# use that URL. Our custom login view (auth.login) does not enforce this,
 # so those users remain unaffected. After signup, allauth redirects to
 # account_email_verification_sent (not to the login page), so ACCOUNT_SIGNUP_REDIRECT_URL
 # below is only reached when the user is already verified (e.g. social auth signup).
@@ -1269,7 +1317,7 @@ ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
 # Prefer Jinja2 templates for django-allauth
 ACCOUNT_TEMPLATE_EXTENSION = 'jinja'
 ACCOUNT_ADAPTER = 'eventyay.eventyay_common.adapter.CustomAccountAdapter'
-ACCOUNT_SIGNUP_REDIRECT_URL = 'eventyay_common:auth.login'
+ACCOUNT_SIGNUP_REDIRECT_URL = 'auth.login'
 ACCOUNT_EMAIL_CONFIRMATION_AUTHENTICATED_REDIRECT_URL = '/common/account/email'
 
 SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = True
@@ -1348,6 +1396,17 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_RENDERER_CLASSES': ('rest_framework.renderers.JSONRenderer',),
     'UNICODE_JSON': False,
+    # User throttle is global (keyed by user/token, NAT-safe). Anonymous IP throttling
+    # is opt-in on high-traffic public endpoints only (streams, schedule).
+    'DEFAULT_THROTTLE_CLASSES': [
+        'eventyay.api.throttles.EventyayUserRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '60/minute',
+        'user': '300/minute',
+        'public_stream': '10/minute',
+        'public_schedule': '30/minute',
+    },
 }
 
 SPECTACULAR_SETTINGS = {
@@ -1374,8 +1433,8 @@ BASE_PATH = ''
 SITE_URL = str(conf.site_url)
 SITE_NETLOC = urlparse(SITE_URL).netloc
 
-LOGIN_URL = 'eventyay_common:auth.login'
-LOGIN_URL_CONTROL = 'eventyay_common:auth.login'
+LOGIN_URL = 'auth.login'
+LOGIN_URL_CONTROL = 'auth.login'
 
 # TODO: We should not need them (after merging eventyay-xxx components).
 VIDEO_BASE_PATH = '/video'
@@ -1451,10 +1510,14 @@ EVENTYAY_ENVIRONMENT = os.getenv('EVENTYAY_ENVIRONMENT', 'unknown')
 
 # Sentry configuration
 SENTRY_DSN = conf.sentry_dsn
+SENTRY_ENABLED = bool(SENTRY_DSN)
 if SENTRY_DSN:
     import sentry_sdk
     from sentry_sdk.integrations.celery import CeleryIntegration
     from sentry_sdk.integrations.django import DjangoIntegration
+
+    from django.core.exceptions import PermissionDenied
+    from django.http import Http404
 
     sentry_sdk.init(
         dsn=SENTRY_DSN,
@@ -1463,6 +1526,7 @@ if SENTRY_DSN:
         debug=DEBUG,
         release=EVENTYAY_COMMIT if EVENTYAY_COMMIT != 'unknown' else None,
         environment=active_environment.value,
+        ignore_errors=[Http404, PermissionDenied],
     )
 
 # Multifactor authentication configuration

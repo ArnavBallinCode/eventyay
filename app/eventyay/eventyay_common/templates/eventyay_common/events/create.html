@@ -104,7 +104,7 @@
             <fieldset>
                 <legend>{% trans "Localization" %}</legend>
                 {% bootstrap_field foundation_form.locales layout="control" %}
-                {% bootstrap_field basics_form.locale layout="control" %}
+                <input type="hidden" name="basics-locale" id="id_basics-locale" value="{% firstof basics_form.locale.value foundation_form.locales.value|first 'en' %}">
             </fieldset>
 
             <fieldset>
@@ -152,6 +152,10 @@
                 <div id="video-url-group" {% if not basics_form.video_type.value %}hidden{% endif %}>
                     {% bootstrap_field basics_form.video_url layout="control" %}
                 </div>
+            </fieldset>
+            <fieldset>
+                <legend>{% trans "Registration limit" %}</legend>
+                {% bootstrap_field basics_form.registration_limit layout="control" %}
             </fieldset>
             {% endif %}
 

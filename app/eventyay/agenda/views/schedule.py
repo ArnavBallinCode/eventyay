@@ -38,6 +38,7 @@ from eventyay.agenda.views.utils import (
 )
 from eventyay.common.signals import register_my_data_exporters
 from eventyay.common.urls import get_base_url
+from eventyay.common.views.helpers import build_login_url_with_next
 from eventyay.common.views.mixins import EventPermissionRequired, PermissionRequired
 from eventyay.schedule.ascii import draw_ascii_schedule
 from eventyay.schedule.exporters import ScheduleData
@@ -173,6 +174,11 @@ class ExporterView(EventPermissionRequired, ScheduleMixin, TemplateView):
         if self.request.GET.get('featured') == 'true':
             return can_use_featured_exports(self.request.user, self.request.event)
         return False
+
+    def handle_no_permission(self):
+        if self.request.user.is_anonymous:
+            raise Http404()
+        return super().handle_no_permission()
 
     def dispatch(self, request, *args, **kwargs):
         self.ensure_wip_schedule_access(kwargs, request)
@@ -562,7 +568,7 @@ class CalendarRedirectView(EventPermissionRequired, ScheduleMixin, TemplateView)
 
         if is_my:
             if not request.user.is_authenticated:
-                return HttpResponseRedirect(self.request.event.urls.login)
+                return HttpResponseRedirect(build_login_url_with_next(self.request.get_full_path()))
 
             existing_token = request.session.get(STARRED_ICS_TOKEN_SESSION_KEY)
             generate_new_token = True

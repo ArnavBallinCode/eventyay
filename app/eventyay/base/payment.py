@@ -6,11 +6,13 @@ from decimal import ROUND_HALF_UP, Decimal
 from enum import Enum
 from typing import Any, Dict, Union
 
-import pytz
+import datetime
+from zoneinfo import ZoneInfo
 from django import forms
 from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import ImproperlyConfigured, ValidationError
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import transaction
 from django.dispatch import receiver
 from django.forms import Form
@@ -326,6 +328,7 @@ class BasePaymentProvider:
                         help_text=_('Percentage of the order total.'),
                         localize=True,
                         required=False,
+                        validators=[MinValueValidator(0), MaxValueValidator(100)],
                     ),
                 ),
                 (
@@ -477,7 +480,7 @@ class BasePaymentProvider:
 
     def _is_still_available(self, now_dt=None, cart_id=None, order=None):
         now_dt = now_dt or now()
-        tz = pytz.timezone(self.event.settings.timezone)
+        tz = ZoneInfo(self.event.settings.timezone)
 
         availability_date = self.settings.get('_availability_date', as_type=RelativeDateWrapper)
         if availability_date:
