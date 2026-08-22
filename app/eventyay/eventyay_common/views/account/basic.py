@@ -102,25 +102,25 @@ class GeneralSettingsView(LoginRequiredMixin, AccountMenuMixIn, UpdateView):
 
         data = {}
         for k in form.changed_data:
-            if k not in ('old_pw', 'new_pw_repeat', 'clear_avatar'):
+            if k not in ('old_pw', 'new_pw_repeat', 'clear_profile_picture'):
                 if k == 'new_pw':
                     data['new_pw'] = True
-                elif k == 'avatar':
-                    data['avatar'] = bool(form.cleaned_data.get('avatar'))
+                elif k == 'profile_picture':
+                    data['profile_picture'] = bool(form.cleaned_data.get('profile_picture'))
                 else:
                     data[k] = form.cleaned_data[k]
 
-        if form.cleaned_data.get('clear_avatar'):
-            if self.object.avatar:
-                self.object.avatar.delete(save=False)
-            if self.object.avatar_thumbnail:
-                self.object.avatar_thumbnail.delete(save=False)
-            if self.object.avatar_thumbnail_tiny:
-                self.object.avatar_thumbnail_tiny.delete(save=False)
-            self.object.avatar = None
-            self.object.avatar_thumbnail = None
-            self.object.avatar_thumbnail_tiny = None
-            data['avatar'] = False
+        if form.cleaned_data.get('clear_profile_picture'):
+            if self.object.profile_picture:
+                self.object.profile_picture.delete(save=False)
+            if self.object.profile_picture_thumbnail:
+                self.object.profile_picture_thumbnail.delete(save=False)
+            if self.object.profile_picture_thumbnail_tiny:
+                self.object.profile_picture_thumbnail_tiny.delete(save=False)
+            self.object.profile_picture = None
+            self.object.profile_picture_thumbnail = None
+            self.object.profile_picture_thumbnail_tiny = None
+            data['profile_picture'] = False
 
         msgs = []
 
@@ -138,8 +138,8 @@ class GeneralSettingsView(LoginRequiredMixin, AccountMenuMixIn, UpdateView):
 
         sup = super().form_valid(form)
 
-        if 'avatar' in form.changed_data and self.object.avatar and not form.cleaned_data.get('clear_avatar'):
-            self.object.process_image('avatar', generate_thumbnail=True)
+        if 'profile_picture' in form.changed_data and self.object.profile_picture and not form.cleaned_data.get('clear_profile_picture'):
+            self.object.process_image('profile_picture', generate_thumbnail=True)
 
         self.request.user.log_action('eventyay.user.settings.changed', user=self.request.user, data=data)
 

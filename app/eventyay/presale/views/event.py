@@ -746,9 +746,12 @@ class EventIndex(EventViewMixin, EventListMixin, CartMixin, TemplateView):
             }
             user_avatars = {}
             if emails:
-                users = User.objects.filter(email__in=emails, event__isnull=True)
+                users = (
+                    User.objects.filter(email__in=emails, event__isnull=True)
+                    .only('id', 'email', 'profile_picture', 'profile_picture_thumbnail', 'profile_picture_thumbnail_tiny')
+                )
                 for u in users:
-                    avatar_url = u.get_avatar_url(event=event, thumbnail='default') or u.get_avatar_url(event=event)
+                    avatar_url = u.get_profile_picture_url(event=event, thumbnail='default') or u.get_profile_picture_url(event=event)
                     if avatar_url:
                         user_avatars[u.email.lower()] = avatar_url
 

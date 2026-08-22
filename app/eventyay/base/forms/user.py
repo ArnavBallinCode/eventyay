@@ -21,14 +21,14 @@ class UserSettingsForm(forms.ModelForm):
         'rate_limit': _('For security reasons, please wait 5 minutes before you try again.'),
     }
 
-    avatar = forms.ImageField(
+    profile_picture = forms.ImageField(
         required=False,
         label=_('Profile picture'),
         validators=[validate_image],
         widget=forms.FileInput(attrs={'data-eventyay-file-wrapper': 'disabled'}),
         help_text=_('We recommend uploading a square image at least 400px wide.'),
     )
-    clear_avatar = forms.BooleanField(
+    clear_profile_picture = forms.BooleanField(
         required=False,
         label=_('Remove profile picture'),
     )
@@ -61,7 +61,7 @@ class UserSettingsForm(forms.ModelForm):
 
     class Meta:
         model = User
-        fields = ['fullname', 'wikimedia_username', 'avatar', 'locale', 'timezone', 'email']
+        fields = ['fullname', 'wikimedia_username', 'profile_picture', 'locale', 'timezone', 'email']
         widgets = {'locale': SingleLanguageWidget}
 
     def __init__(self, *args, **kwargs):
@@ -121,14 +121,14 @@ class UserSettingsForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
-        has_new_avatar_upload = bool(self.files and self.files.get('avatar'))
-        if cleaned_data.get('clear_avatar') and has_new_avatar_upload:
+        has_new_profile_picture_upload = bool(self.files and self.files.get('profile_picture'))
+        if cleaned_data.get('clear_profile_picture') and has_new_profile_picture_upload:
             raise forms.ValidationError(
                 _('Cannot upload a new profile picture and remove the existing one at the same time.')
             )
 
-        if cleaned_data.get('clear_avatar'):
-            cleaned_data['avatar'] = None
+        if cleaned_data.get('clear_profile_picture'):
+            cleaned_data['profile_picture'] = None
 
         password1 = cleaned_data.get('new_pw')
         old_pw = cleaned_data.get('old_pw')
