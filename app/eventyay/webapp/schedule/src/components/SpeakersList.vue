@@ -599,7 +599,7 @@ export default {
 				const data = await res.json()
 				this.speakersFromApi = append ? this.speakersFromApi.concat(data.results) : data.results
 				this.nextPageUrl = data.next
-					? new URL(data.next, this.eventUrl || window.location.origin).toString()
+					? new URL(data.next, window.location.origin).toString()
 					: null
 			} catch (e) {
 				if (e.name !== 'AbortError') {
