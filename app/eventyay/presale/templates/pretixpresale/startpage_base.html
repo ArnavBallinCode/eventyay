@@ -10,7 +10,7 @@
 <html lang="{{ html_locale }}"{% if rtl %} dir="rtl" class="rtl"{% endif %}>
     <head>
         <meta charset="utf-8">
-        <title>{% block page_title %}{% trans 'Start page' %}{% endblock %} :: {{ site_name }}</title>
+        <title>{{ site_name }}</title>
         {% block meta_tags %}
         <meta name="title" content="{% if global_settings.seo_homepage_title %}{{ global_settings.seo_homepage_title }}{% else %}{% trans 'Start page' %} {{ site_name }}{% endif %}">
         <meta name="description" content="{% if global_settings.seo_homepage_description %}{{ global_settings.seo_homepage_description }}{% else %}{% trans 'Browse live events on' %} {{ site_name }}{% endif %}">
