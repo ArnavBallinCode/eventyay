@@ -238,9 +238,9 @@ def _original_save_params(extension, img):
     if extension in ('.jpg', '.jpeg'):
         if img.mode != 'RGB':
             img = img.convert('RGB')
-        return img, 'JPEG', {'quality': 85, 'optimize': True, 'progressive': True}
+        return img, 'JPEG', {'quality': 70, 'optimize': True, 'progressive': True}
     if extension == '.webp':
-        return img, 'WEBP', {'quality': 95}
+        return img, 'WEBP', {'quality': 75}
     if extension == '.png':
         return img, 'PNG', {'optimize': True}
     raise ValueError(f'Unsupported original extension: {extension}')
@@ -281,9 +281,20 @@ def process_image(*, image, generate_thumbnail=False):
         return True
 
     try:
+        import tempfile
+        import os
+        
         prepared = _prepare_original_image(img)
         prepared, save_format, save_kwargs = _original_save_params(extension, prepared)
-        prepared.save(image.path, format=save_format, **save_kwargs)
+        
+        # Save to a temporary file in the same directory to ensure it's on the same filesystem
+        dir_name = os.path.dirname(image.path)
+        fd, temp_path = tempfile.mkstemp(dir=dir_name, suffix=extension)
+        with os.fdopen(fd, 'wb') as temp_file:
+            prepared.save(temp_file, format=save_format, **save_kwargs)
+            
+        # Atomically replace the old file with the new one
+        os.replace(temp_path, image.path)
     except Exception:
         logger.exception('Failed to save processed image %s', getattr(image, 'name', image))
         return False
