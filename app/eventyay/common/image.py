@@ -313,8 +313,19 @@ def process_image(*, image, generate_thumbnail=False):
                         pass
         except NotImplementedError:
             # Fallback for remote storage backends (e.g., S3)
-            image.storage.delete(image.name)
-            image.storage.save(image.name, ContentFile(buf.getvalue()))
+            temp_key = image.name + '.tmp' + extension
+            
+            # 1. Upload to temp key first
+            image.storage.save(temp_key, ContentFile(buf.getvalue()))
+            
+            try:
+                # 2. Upload succeeded, safe to delete original and replace
+                image.storage.delete(image.name)
+                with image.storage.open(temp_key, 'rb') as temp_f:
+                    image.storage.save(image.name, temp_f)
+            finally:
+                # 3. Clean up temp key
+                image.storage.delete(temp_key)
             
     except Exception:
         logger.exception('Failed to save processed image %s', getattr(image, 'name', image))

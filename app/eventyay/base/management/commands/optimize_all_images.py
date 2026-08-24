@@ -82,6 +82,10 @@ class Command(BaseCommand):
                             self.stderr.write(self.style.WARNING(f"Storage does not support local path for: {image_field.name}"))
                             total_skipped += 1
                             continue
+                        except Exception as e:
+                            self.stderr.write(self.style.ERROR(f"Error accessing storage for {model_name} ID {instance.pk}: {e}"))
+                            total_failed += 1
+                            continue
 
                         if dry_run:
                             self.stdout.write(self.style.SUCCESS(f"[DRY-RUN] Would process {model_name}.{field_name} for instance ID {instance.pk}: {image_field.name}"))
