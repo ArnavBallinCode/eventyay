@@ -281,30 +281,41 @@ def process_image(*, image, generate_thumbnail=False):
         return True
 
     try:
+        from io import BytesIO
+        from django.core.files.base import ContentFile
         import tempfile
         import os
         
         prepared = _prepare_original_image(img)
         prepared, save_format, save_kwargs = _original_save_params(extension, prepared)
         
-        # Save to a temporary file in the same directory to ensure it's on the same filesystem
-        dir_name = os.path.dirname(image.path)
-        temp_path = None
+        buf = BytesIO()
+        prepared.save(buf, format=save_format, **save_kwargs)
+        
         try:
-            fd, temp_path = tempfile.mkstemp(dir=dir_name, suffix=extension)
-            with os.fdopen(fd, 'wb') as temp_file:
-                prepared.save(temp_file, format=save_format, **save_kwargs)
-            
-            os.chmod(temp_path, os.stat(image.path).st_mode)
-            # Atomically replace the old file with the new one
-            os.replace(temp_path, image.path)
+            # Attempt atomic local file replacement
+            local_path = image.path
+            dir_name = os.path.dirname(local_path)
             temp_path = None
-        finally:
-            if temp_path is not None:
-                try:
-                    os.unlink(temp_path)
-                except OSError:
-                    pass
+            try:
+                fd, temp_path = tempfile.mkstemp(dir=dir_name, suffix=extension)
+                with os.fdopen(fd, 'wb') as temp_file:
+                    temp_file.write(buf.getvalue())
+                
+                os.chmod(temp_path, os.stat(local_path).st_mode)
+                os.replace(temp_path, local_path)
+                temp_path = None
+            finally:
+                if temp_path is not None:
+                    try:
+                        os.unlink(temp_path)
+                    except OSError:
+                        pass
+        except NotImplementedError:
+            # Fallback for remote storage backends (e.g., S3)
+            image.storage.delete(image.name)
+            image.storage.save(image.name, ContentFile(buf.getvalue()))
+            
     except Exception:
         logger.exception('Failed to save processed image %s', getattr(image, 'name', image))
         return False
