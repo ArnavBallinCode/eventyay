@@ -43,52 +43,55 @@ class Command(BaseCommand):
         total_failed = 0
         total_skipped = 0
 
-        for model_cls, fields, generate_thumbnail in image_models:
-            model_name = model_cls.__name__
+        from django_scopes import scopes_disabled
 
-            if models_filter and model_name not in models_filter:
-                continue
+        with scopes_disabled():
+            for model_cls, fields, generate_thumbnail in image_models:
+                model_name = model_cls.__name__
 
-            self.stdout.write(self.style.MIGRATE_HEADING(f"Processing {model_name}"))
+                if models_filter and model_name not in models_filter:
+                    continue
 
-            for field_name in fields:
-                # Get all instances where the field is not empty
-                qs = model_cls.objects.exclude(**{field_name: ''}).exclude(**{field_name: None})
-                
-                self.stdout.write(f"Found {qs.count()} non-empty {field_name} fields in {model_name}")
+                self.stdout.write(self.style.MIGRATE_HEADING(f"Processing {model_name}"))
 
-                for instance in qs.iterator():
-                    image_field = getattr(instance, field_name)
-                    if not image_field or not image_field.name:
-                        continue
+                for field_name in fields:
+                    # Get all instances where the field is not empty
+                    qs = model_cls.objects.exclude(**{field_name: ''}).exclude(**{field_name: None})
+                    
+                    self.stdout.write(f"Found {qs.count()} non-empty {field_name} fields in {model_name}")
 
-                    # Don't try to process remote/external URLs directly in this command.
-                    # That is handled by import_external_images.
-                    if image_field.name.startswith(('http://', 'https://')):
-                        total_skipped += 1
-                        continue
+                    for instance in qs.iterator():
+                        image_field = getattr(instance, field_name)
+                        if not image_field or not image_field.name:
+                            continue
 
-                    if not hasattr(image_field, 'path') or not os.path.exists(image_field.path):
-                        self.stderr.write(self.style.WARNING(f"File not found locally: {image_field.name}"))
-                        total_skipped += 1
-                        continue
+                        # Don't try to process remote/external URLs directly in this command.
+                        # That is handled by import_external_images.
+                        if image_field.name.startswith(('http://', 'https://')):
+                            total_skipped += 1
+                            continue
 
-                    if dry_run:
-                        self.stdout.write(self.style.SUCCESS(f"[DRY-RUN] Would process {model_name}.{field_name} for instance ID {instance.pk}: {image_field.name}"))
-                        continue
+                        if not hasattr(image_field, 'path') or not os.path.exists(image_field.path):
+                            self.stderr.write(self.style.WARNING(f"File not found locally: {image_field.name}"))
+                            total_skipped += 1
+                            continue
 
-                    try:
-                        with transaction.atomic():
-                            success = process_image(image=image_field, generate_thumbnail=generate_thumbnail)
-                            if success:
-                                self.stdout.write(self.style.SUCCESS(f"Optimized {image_field.name}"))
-                                total_processed += 1
-                            else:
-                                self.stderr.write(self.style.ERROR(f"Failed to process {image_field.name}"))
-                                total_failed += 1
-                    except Exception as e:
-                        self.stderr.write(self.style.ERROR(f"Error processing {model_name} ID {instance.pk}: {e}"))
-                        total_failed += 1
+                        if dry_run:
+                            self.stdout.write(self.style.SUCCESS(f"[DRY-RUN] Would process {model_name}.{field_name} for instance ID {instance.pk}: {image_field.name}"))
+                            continue
+
+                        try:
+                            with transaction.atomic():
+                                success = process_image(image=image_field, generate_thumbnail=generate_thumbnail)
+                                if success:
+                                    self.stdout.write(self.style.SUCCESS(f"Optimized {image_field.name}"))
+                                    total_processed += 1
+                                else:
+                                    self.stderr.write(self.style.ERROR(f"Failed to process {image_field.name}"))
+                                    total_failed += 1
+                        except Exception as e:
+                            self.stderr.write(self.style.ERROR(f"Error processing {model_name} ID {instance.pk}: {e}"))
+                            total_failed += 1
 
         if dry_run:
             self.stdout.write(self.style.SUCCESS("\nDry run completed."))
