@@ -1,5 +1,7 @@
 import logging
+import os
 import re
+import tempfile
 from functools import partial
 from io import BytesIO
 from pathlib import Path
@@ -208,8 +210,13 @@ def validate_image(f):
 
 
 def _open_raster_image(image):
-    if getattr(image, 'path', None):
-        opened = Image.open(image.path)
+    try:
+        path = getattr(image, 'path', None)
+    except (NotImplementedError, AttributeError):
+        path = None
+
+    if path:
+        opened = Image.open(path)
         opened.load()
         return opened
 
@@ -281,26 +288,26 @@ def process_image(*, image, generate_thumbnail=False):
         return True
 
     try:
-        from io import BytesIO
-        from django.core.files.base import ContentFile
-        import tempfile
-        import os
-        
         prepared = _prepare_original_image(img)
         prepared, save_format, save_kwargs = _original_save_params(extension, prepared)
         
         buf = BytesIO()
         prepared.save(buf, format=save_format, **save_kwargs)
         
+        local_path = None
         try:
-            # Attempt atomic local file replacement
             local_path = image.path
+        except (NotImplementedError, AttributeError):
+            pass
+
+        if local_path:
+            # Attempt atomic local file replacement
             dir_name = os.path.dirname(local_path)
             temp_path = None
             try:
                 fd, temp_path = tempfile.mkstemp(dir=dir_name, suffix=extension)
-                with os.fdopen(fd, 'wb') as temp_file:
-                    temp_file.write(buf.getvalue())
+                with os.fdopen(fd, 'wb') as temp_f:
+                    temp_f.write(buf.getvalue())
                 
                 os.chmod(temp_path, os.stat(local_path).st_mode)
                 os.replace(temp_path, local_path)
@@ -311,23 +318,23 @@ def process_image(*, image, generate_thumbnail=False):
                         os.unlink(temp_path)
                     except OSError:
                         pass
-        except NotImplementedError:
+        else:
             # Fallback for remote storage backends (e.g., S3)
             temp_key = image.name + '.tmp' + extension
             
             # 1. Upload to temp key first
-            image.storage.save(temp_key, ContentFile(buf.getvalue()))
+            saved_temp_key = image.storage.save(temp_key, ContentFile(buf.getvalue()))
             
             try:
                 # 2. Upload succeeded, safe to delete original and replace
                 image.storage.delete(image.name)
-                with image.storage.open(temp_key, 'rb') as temp_f:
+                with image.storage.open(saved_temp_key, 'rb') as temp_f:
                     image.storage.save(image.name, temp_f)
             finally:
                 # 3. Clean up temp key
-                image.storage.delete(temp_key)
+                image.storage.delete(saved_temp_key)
             
-    except Exception:
+    except (OSError, ValueError, DecompressionBombError, AttributeError, NotImplementedError) as e:
         logger.exception('Failed to save processed image %s', getattr(image, 'name', image))
         return False
 
