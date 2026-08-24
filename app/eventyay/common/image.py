@@ -289,12 +289,22 @@ def process_image(*, image, generate_thumbnail=False):
         
         # Save to a temporary file in the same directory to ensure it's on the same filesystem
         dir_name = os.path.dirname(image.path)
-        fd, temp_path = tempfile.mkstemp(dir=dir_name, suffix=extension)
-        with os.fdopen(fd, 'wb') as temp_file:
-            prepared.save(temp_file, format=save_format, **save_kwargs)
+        temp_path = None
+        try:
+            fd, temp_path = tempfile.mkstemp(dir=dir_name, suffix=extension)
+            with os.fdopen(fd, 'wb') as temp_file:
+                prepared.save(temp_file, format=save_format, **save_kwargs)
             
-        # Atomically replace the old file with the new one
-        os.replace(temp_path, image.path)
+            os.chmod(temp_path, os.stat(image.path).st_mode)
+            # Atomically replace the old file with the new one
+            os.replace(temp_path, image.path)
+            temp_path = None
+        finally:
+            if temp_path is not None:
+                try:
+                    os.unlink(temp_path)
+                except OSError:
+                    pass
     except Exception:
         logger.exception('Failed to save processed image %s', getattr(image, 'name', image))
         return False

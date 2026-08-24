@@ -71,8 +71,15 @@ class Command(BaseCommand):
                             total_skipped += 1
                             continue
 
-                        if not hasattr(image_field, 'path') or not os.path.exists(image_field.path):
-                            self.stderr.write(self.style.WARNING(f"File not found locally: {image_field.name}"))
+                        try:
+                            if not image_field.storage.exists(image_field.name):
+                                self.stderr.write(self.style.WARNING(f"File not found in storage: {image_field.name}"))
+                                total_skipped += 1
+                                continue
+                            # Ensure local path is supported (since process_image relies on it)
+                            _ = image_field.path
+                        except NotImplementedError:
+                            self.stderr.write(self.style.WARNING(f"Storage does not support local path for: {image_field.name}"))
                             total_skipped += 1
                             continue
 
