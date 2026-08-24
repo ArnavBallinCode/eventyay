@@ -92,6 +92,27 @@ class Command(BaseCommand):
                             continue
 
                         try:
+                            # Create backup directory
+                            from django.conf import settings
+                            import shutil
+                            backup_dir = os.path.join(settings.MEDIA_ROOT, 'image_backups')
+                            os.makedirs(backup_dir, exist_ok=True)
+                            
+                            # Backup original
+                            backup_filename = f"{model_name}_{instance.pk}_{os.path.basename(image_field.name)}"
+                            backup_path = os.path.join(backup_dir, backup_filename)
+                            
+                            try:
+                                # This will work for local VPS storage
+                                shutil.copy2(image_field.path, backup_path)
+                                self.stdout.write(f"Backed up original to: {backup_path}")
+                            except NotImplementedError:
+                                # For remote storages, we can read from storage and write locally
+                                with image_field.storage.open(image_field.name, 'rb') as remote_file:
+                                    with open(backup_path, 'wb') as local_backup:
+                                        shutil.copyfileobj(remote_file, local_backup)
+                                self.stdout.write(f"Backed up remote original to: {backup_path}")
+
                             with transaction.atomic():
                                 success = process_image(image=image_field, generate_thumbnail=generate_thumbnail)
                                 if success:
