@@ -141,6 +141,27 @@ class SettingsForm(i18nfield.forms.I18nFormMixin, HierarkeyForm):
                 return value
         return settings_proxy.get(key, as_type=declared_type, default=default)
 
+    def clean(self):
+        cleaned_data = super().clean()
+        from django.core.files.uploadedfile import UploadedFile
+        from eventyay.helpers.image_optimize import optimize_uploaded_image
+        import os
+        
+        for k, v in cleaned_data.items():
+            if isinstance(v, UploadedFile) and k in [
+                'logo_image', 'event_logo_image', 'event_preview_image', 'og_image',
+                'organizer_logo_image', 'organizer_header_image', 'invoice_logo_image', 'startpage_header_image'
+            ]:
+                try:
+                    opt = optimize_uploaded_image(v, k)
+                    orig_name = os.path.splitext(v.name or 'upload')[0]
+                    opt.optimized.name = f'{orig_name}.{opt.optimized_ext}'
+                    cleaned_data[k] = opt.optimized
+                except (ValueError, OSError):
+                    if hasattr(v, 'seek'):
+                        v.seek(0)
+        return cleaned_data
+
     def save(self):
         for k, v in self.cleaned_data.items():
             if isinstance(self.fields.get(k), SecretKeySettingsField) and self.cleaned_data.get(k) == SECRET_REDACTED:

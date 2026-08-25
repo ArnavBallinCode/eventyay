@@ -1,5 +1,6 @@
 from rest_framework import serializers
 
+from eventyay.api.serializers.fields import UploadedFileField
 from eventyay.api.serializers.i18n import I18nAwareModelSerializer
 from eventyay.base.models.event import Event
 from eventyay.base.models.room import Room, RoomLinkedSessionsSerializerMixin
@@ -10,6 +11,12 @@ class RoomSerializer(RoomLinkedSessionsSerializerMixin, I18nAwareModelSerializer
         child=serializers.DictField(), required=False, default=[]
     )
     trait_grants = serializers.DictField(required=False, default={})
+
+    picture = UploadedFileField(
+        required=False,
+        allow_null=True,
+        allowed_types=('image/png', 'image/jpeg', 'image/gif', 'image/webp'),
+    )
 
     class Meta:
         model = Room
@@ -25,7 +32,7 @@ class RoomSerializer(RoomLinkedSessionsSerializerMixin, I18nAwareModelSerializer
             "schedule_data",
             "is_unscheduled",
             "has_linked_sessions",
-            # TODO: picture
+            "picture",
         ]
 
 

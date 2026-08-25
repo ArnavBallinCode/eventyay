@@ -64,6 +64,22 @@ class UploadedFileField(serializers.Field):
         if self.max_size and cf.file.size > self.max_size:
             self.fail('size')
 
+        if cf.type.startswith('image/') and self.field_name in [
+            'picture', 'logo_image', 'event_logo_image', 'event_preview_image', 
+            'og_image', 'organizer_logo_image', 'organizer_header_image', 
+            'invoice_logo_image', 'startpage_header_image'
+        ]:
+            from eventyay.helpers.image_optimize import optimize_uploaded_image
+            import os
+            try:
+                opt = optimize_uploaded_image(cf.file, self.field_name)
+                orig_name = os.path.splitext(cf.file.name or 'upload')[0]
+                opt.optimized.name = f'{orig_name}.{opt.optimized_ext}'
+                return opt.optimized
+            except (ValueError, OSError):
+                if hasattr(cf.file, 'seek'):
+                    cf.file.seek(0)
+
         return cf.file
 
     def to_representation(self, value):
