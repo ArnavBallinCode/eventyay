@@ -7,7 +7,9 @@ from django.utils.translation import gettext_lazy as _
 from hierarkey.proxy import HierarkeyProxy
 from rest_framework import serializers
 
+import os
 from eventyay.common.urls import get_file_url_path, get_url_scheme, is_http_url, normalize_url_scheme
+from eventyay.helpers.image_optimize import optimize_uploaded_image
 
 
 def remove_duplicates_from_list(data):
@@ -37,6 +39,7 @@ class UploadedFileField(serializers.Field):
         'not_found': 'The submitted file ID was not found.',
         'invalid_type': 'The submitted file has a file type that is not allowed in this field.',
         'size': 'The submitted file is too large to be used in this field.',
+        'invalid_image': 'Upload a valid image. The file you uploaded was either not an image or a corrupted image.',
     }
 
     def __init__(self, *args, **kwargs):
@@ -69,16 +72,13 @@ class UploadedFileField(serializers.Field):
             'og_image', 'organizer_logo_image', 'organizer_header_image', 
             'invoice_logo_image', 'startpage_header_image'
         ]:
-            from eventyay.helpers.image_optimize import optimize_uploaded_image
-            import os
             try:
                 opt = optimize_uploaded_image(cf.file, self.field_name)
                 orig_name = os.path.splitext(cf.file.name or 'upload')[0]
                 opt.optimized.name = f'{orig_name}.{opt.optimized_ext}'
                 return opt.optimized
             except (ValueError, OSError):
-                if hasattr(cf.file, 'seek'):
-                    cf.file.seek(0)
+                self.fail('invalid_image')
 
         return cf.file
 

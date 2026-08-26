@@ -3,6 +3,8 @@ from rest_framework import serializers
 from eventyay.api.serializers.fields import UploadedFileField
 from eventyay.api.serializers.i18n import I18nAwareModelSerializer
 from eventyay.base.models.event import Event
+from django.conf import settings
+from eventyay.consts import SizeKey
 from eventyay.base.models.room import Room, RoomLinkedSessionsSerializerMixin
 
 
@@ -16,6 +18,7 @@ class RoomSerializer(RoomLinkedSessionsSerializerMixin, I18nAwareModelSerializer
         required=False,
         allow_null=True,
         allowed_types=('image/png', 'image/jpeg', 'image/gif', 'image/webp'),
+        max_size=settings.MAX_SIZE_CONFIG[SizeKey.UPLOAD_SIZE_IMAGE],
     )
 
     class Meta:

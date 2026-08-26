@@ -14,6 +14,9 @@ from i18nfield.strings import LazyI18nString
 
 from eventyay.base.reldate import RelativeDateField, RelativeDateTimeField
 from eventyay.common.urls import is_http_url
+from eventyay.helpers.image_optimize import optimize_uploaded_image
+from django.core.files.uploadedfile import UploadedFile
+import os
 
 from .validators import PlaceholderValidator  # NOQA
 
@@ -143,14 +146,10 @@ class SettingsForm(i18nfield.forms.I18nFormMixin, HierarkeyForm):
 
     def clean(self):
         cleaned_data = super().clean()
-        from django.core.files.uploadedfile import UploadedFile
-        from eventyay.helpers.image_optimize import optimize_uploaded_image
-        import os
         
         for k, v in cleaned_data.items():
             if isinstance(v, UploadedFile) and k in [
-                'logo_image', 'event_logo_image', 'event_preview_image', 'og_image',
-                'organizer_logo_image', 'organizer_header_image', 'invoice_logo_image', 'startpage_header_image'
+                'invoice_logo_image', 'startpage_header_image'
             ]:
                 try:
                     opt = optimize_uploaded_image(v, k)

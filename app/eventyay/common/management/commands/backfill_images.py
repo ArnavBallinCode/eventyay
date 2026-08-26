@@ -19,7 +19,7 @@ from django.core.files.storage import default_storage
 from django.utils import timezone
 from django_scopes import scopes_disabled
 
-from eventyay.base.models import Submission, User, Product, Room, Event, Event_SettingsStore, Organizer, Organizer_SettingsStore
+from eventyay.base.models import Submission, User, Product, Room, Event_SettingsStore, Organizer_SettingsStore
 from eventyay.common.image import invalidate_speaker_avatar_caches, is_svg_filename, recompress_image_field
 
 logger = logging.getLogger(__name__)
@@ -79,14 +79,19 @@ class Command(BaseCommand):
             type=str,
             help='Directory outside of MEDIA_ROOT to store original files before compression. Required unless --dry-run is set.',
         )
+        parser.add_argument(
+            '--model',
+            action='append',
+            choices=list(IMAGE_TARGETS.keys()) + ['settings'],
+            help='Only process specific models. Can be specified multiple times.',
+        )
 
     def _backup_file(self, image, backup_dir, prefix):
         if not backup_dir:
             return
         os.makedirs(backup_dir, exist_ok=True)
         basename = os.path.basename(image.name)
-        timestamp = timezone.now().strftime('%Y%m%d%H%M%S')
-        backup_filename = f'{prefix}_{timestamp}_{basename}'
+        backup_filename = f'{prefix}_{timezone.now():%Y%m%d%H%M%S}_{basename}'
         backup_path = os.path.join(backup_dir, backup_filename)
         
         with image.open('rb') as f:
@@ -99,6 +104,14 @@ class Command(BaseCommand):
         if not dry_run and not backup_dir:
             raise CommandError('--backup-dir is required unless --dry-run is set to prevent data loss.')
             
+        if backup_dir:
+            backup_abs = os.path.abspath(backup_dir)
+            media_abs = os.path.abspath(settings.MEDIA_ROOT)
+            if backup_abs == media_abs or backup_abs.startswith(media_abs + os.sep):
+                raise CommandError(f'--backup-dir ({backup_abs}) must not be inside MEDIA_ROOT ({media_abs}).')
+                
+        models_to_process = options.get('model') or list(IMAGE_TARGETS.keys()) + ['settings']
+
         min_bytes = min_size_kb * 1024
         stats = {'compressed': 0, 'failed': 0, 'skipped': 0, 'dry_run': 0}
 
@@ -109,7 +122,7 @@ class Command(BaseCommand):
 
             try:
                 size = image.size
-            except Exception:
+            except (NotImplementedError, AttributeError, OSError):
                 stats['failed'] += 1
                 logger.exception('Could not read size for %s on %s pk=%s', image.name, model_name, pk)
                 self.stderr.write(self.style.ERROR(f'FAILED size read: {model_name} pk={pk} file={image.name}'))
@@ -119,7 +132,11 @@ class Command(BaseCommand):
                 stats['skipped'] += 1
                 return
 
-            location = getattr(image, 'path', 'remote storage')
+            try:
+                location = image.path
+            except (NotImplementedError, AttributeError):
+                location = 'remote storage'
+                
             if dry_run:
                 stats['dry_run'] += 1
                 self.stdout.write(f'WOULD compress {model_name} pk={pk} name={image.name} location={location} size={size / 1024:.2f} KB')
@@ -133,7 +150,7 @@ class Command(BaseCommand):
                 stats['compressed'] += 1
                 try:
                     new_size = image.size
-                except Exception:
+                except (NotImplementedError, AttributeError, OSError):
                     new_size = 'unknown'
                 
                 size_kb = f'{size / 1024:.2f} KB'
@@ -153,6 +170,8 @@ class Command(BaseCommand):
         with scopes_disabled():
             # 1. Process regular models
             for model_key, (model, field_name, generate_thumbnail) in IMAGE_TARGETS.items():
+                if model_key not in models_to_process:
+                    continue
                 queryset = model.objects.exclude(**{f'{field_name}__isnull': True}).exclude(**{field_name: ''})
                 for instance in queryset.iterator(chunk_size=200):
                     image = getattr(instance, field_name)
@@ -161,17 +180,18 @@ class Command(BaseCommand):
                         invalidate_speaker_avatar_caches(instance)
                         
             # 2. Process settings
-            for store_model, name in [(Event_SettingsStore, 'EventSettings'), (Organizer_SettingsStore, 'OrganizerSettings')]:
-                for store in store_model.objects.filter(key__in=SETTINGS_KEYS).iterator(chunk_size=200):
-                    if not store.value.startswith('file://'):
-                        continue
-                        
-                    file_path = store.value[7:]
-                    if not default_storage.exists(file_path):
-                        continue
-                        
-                    image = MockImageFieldFile(file_path)
-                    process_image_field(image, name, store.object_id, generate_thumbnail=False)
+            if 'settings' in models_to_process:
+                for store_model, name in [(Event_SettingsStore, 'EventSettings'), (Organizer_SettingsStore, 'OrganizerSettings')]:
+                    for store in store_model.objects.filter(key__in=SETTINGS_KEYS).iterator(chunk_size=200):
+                        if not store.value.startswith('file://'):
+                            continue
+                            
+                        file_path = store.value[7:]
+                        if not default_storage.exists(file_path):
+                            continue
+                            
+                        image = MockImageFieldFile(file_path)
+                        process_image_field(image, name, store.object_id, generate_thumbnail=False)
 
         self.stdout.write(
             self.style.SUCCESS(

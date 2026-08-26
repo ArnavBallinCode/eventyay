@@ -27,7 +27,7 @@ from typing import NamedTuple
 from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import UploadedFile
 from PIL import Image, ImageOps
-from PIL.Image import Resampling
+from eventyay.common.image import encode_optimized
 
 logger = logging.getLogger(__name__)
 
@@ -122,10 +122,9 @@ def optimize_uploaded_image(
         logger.info('Cropping %s to %s', setting_key, crop_box)
         image = image.crop(crop_box)
 
-    orig_w, orig_h = image.size
+    orig_w, _ = image.size
     
-    from eventyay.common.image import encode_optimized
-    optimized_bytes, optimized_ext = encode_optimized(image, original_ext, max_dimensions=(max_w, 999999))
+    optimized_bytes, optimized_ext = encode_optimized(image, f'.{original_ext}', max_dimensions=(max_w, 999999))
     
     # encode_optimized returns extensions with a dot (e.g., '.jpg')
     optimized_ext = optimized_ext.lstrip('.')

@@ -235,7 +235,7 @@ def _has_alpha(image: Image.Image) -> bool:
     )
 
 
-def encode_optimized(img, original_ext, max_dimensions=None):
+def encode_optimized(img, original_ext, max_dimensions=None, keep_format=False):
     """
     Strips EXIF, resizes to max_dimensions, and encodes to optimal format.
     Returns (data_bytes, extension).
@@ -276,7 +276,10 @@ def encode_optimized(img, original_ext, max_dimensions=None):
             img_without_exif.save(buf, format='PNG', optimize=True)
             return buf.getvalue(), '.png'
     else:
-        if original_ext == '.webp':
+        if keep_format and original_ext == '.png':
+            img_without_exif.save(buf, format='PNG', optimize=True)
+            return buf.getvalue(), '.png'
+        elif original_ext == '.webp':
             img_without_exif.save(buf, format='WEBP', quality=75)
             return buf.getvalue(), '.webp'
         else:
@@ -324,10 +327,10 @@ def process_image(*, image, generate_thumbnail=False):
     try:
         try:
             original_size = image.size
-        except Exception:
+        except (NotImplementedError, AttributeError, OSError):
             original_size = 0
             
-        optimized_bytes, new_extension = encode_optimized(img, extension)
+        optimized_bytes, new_extension = encode_optimized(img, extension, keep_format=True)
         
         if original_size > 0 and len(optimized_bytes) >= original_size and extension == new_extension:
             # Prevent PNG/WebP size growth: if the new file is larger and format is identical, keep original
@@ -368,9 +371,12 @@ def process_image(*, image, generate_thumbnail=False):
                 saved_temp_key = image.storage.save(temp_key, ContentFile(buf.getvalue()))
                 
                 try:
-                    # 2. Upload succeeded, safe to delete original and replace
-                    image.storage.delete(image.name)
+                    # 2. Upload succeeded, replace file contents safely
                     with image.storage.open(saved_temp_key, 'rb') as temp_f:
+                        # storage.save with the same name can potentially create a new file
+                        # if the backend behaves safely, we might get a new name.
+                        # Since we cannot update MockImageFieldFile safely here, we just replace it.
+                        image.storage.delete(image.name)
                         image.storage.save(image.name, temp_f)
                 finally:
                     # 3. Clean up temp key
