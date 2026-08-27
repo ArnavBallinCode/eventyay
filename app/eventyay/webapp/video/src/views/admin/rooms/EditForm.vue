@@ -14,6 +14,7 @@
 			sidebar-addons(v-if="inferredType && inferredType.id === 'stage'", :config="config", :modules="modules", :creating="creating")
 	.ui-form-actions
 		bunt-button.btn-save(@click="save", :loading="saving", :error="!!error") {{ creating ? $t('Create') : $t('Save') }}
+		bunt-button.btn-sync(v-if="!creating && interpretationAdmin.usePluginStreams", @click="syncServices", :loading="syncing", :error="!!syncError", style="margin-left: 10px") {{ $t('Sync Services') }}
 		.errors {{ error || validationErrors.join(', ') }}
 </template>
 <script>
@@ -39,6 +40,7 @@ import {
 	cloneLanguageStreamEntries,
 	fetchInterpretationLanguageStreams,
 	saveInterpretationLanguageStreams,
+	syncInterpretationServices,
 } from 'lib/interpretation-language-streams'
 
 export default {
@@ -73,7 +75,9 @@ export default {
 				'channel-zoom': ChannelZoom,
 			}),
 			saving: false,
+			syncing: false,
 			error: null,
+			syncError: null,
 			interpretationAdmin: {
 				usePluginStreams: false,
 				languageStreams: [],
@@ -225,6 +229,16 @@ export default {
 				this.saving = false
 				this.error = error.message || error
 			}
+		},
+		async syncServices() {
+			this.syncError = null
+			this.syncing = true
+			try {
+				await syncInterpretationServices(this.$store, this.config.id)
+			} catch (error) {
+				this.syncError = error.message || error
+			}
+			this.syncing = false
 		},
 		clearOpenStreamScheduleCreateQuery() {
 			if (this.$route.query.schedule !== 'new') return
