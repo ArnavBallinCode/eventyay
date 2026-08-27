@@ -2,8 +2,8 @@
 bunt-input-outline-container.c-chat-input
 	.editor(ref="editorRef")
 	emoji-picker-button(@selected="addEmoji")
-	upload-button#btn-file(accept="image/png, image/jpg, image/gif, application/pdf, .png, .jpg, .gif, .jpeg, .pdf", icon="paperclip", multiple=true, :tooltip="$t('ChatInput:btn-file:tooltip')", @change="attachFiles")
-	bunt-icon-button#btn-send(:tooltip="$t('ChatInput:btn-send:tooltip')", tooltip-placement="top-end", @click="send") send
+	upload-button#btn-file(accept="image/png, image/jpg, image/gif, application/pdf, .png, .jpg, .gif, .jpeg, .pdf", icon="paperclip", multiple=true, :tooltip="$t('Attach a file')", @change="attachFiles")
+	bunt-icon-button#btn-send(:tooltip="$t('Send')", tooltip-placement="top-end", @click="send") send
 	.files-preview(v-if="files.length > 0 || uploading")
 		template(v-for="file in files")
 			.chat-file(v-if="file === null")
@@ -27,7 +27,7 @@ bunt-input-outline-container.c-chat-input
 					.name {{ option.profile.display_name }}
 				button.load-more(v-if="autocomplete.nextPage", type="button", :disabled="autocomplete.loading", @click.stop="loadMoreMentionResults")
 					bunt-progress-circular(v-if="autocomplete.loading", size="small")
-					template(v-else) {{ $t('ChatInput:load-more:label') }}
+					template(v-else) {{ $t('More') }}
 			bunt-progress-circular(v-else, size="large", :page="true")
 </template>
 <script>
@@ -41,8 +41,7 @@ import { Editor, Node, Extension, mergeAttributes } from '@tiptap/core'
 import Document from '@tiptap/extension-document'
 import Paragraph from '@tiptap/extension-paragraph'
 import Text from '@tiptap/extension-text'
-import History from '@tiptap/extension-history'
-import Placeholder from '@tiptap/extension-placeholder'
+import { Placeholder, UndoRedo } from '@tiptap/extensions'
 import EmojiRegex from 'emoji-regex'
 import api from 'lib/api'
 import { nativeToUrl } from 'lib/emoji'
@@ -214,12 +213,12 @@ export default {
 				Document,
 				Paragraph,
 				Text,
-				History,
+				UndoRedo,
 				EmojiNode,
 				MentionNode,
 				ChatKeymap,
 				Placeholder.configure({
-					placeholder: this.$t('ChatInput:input:placeholder'),
+					placeholder: this.$t('Send a message'),
 				}),
 			],
 			editorProps: {
@@ -240,7 +239,7 @@ export default {
 		if (this.message) {
 			const body = this.message.content?.body || ''
 			if (body) {
-				this.editor.commands.setContent(this.parseMessageBody(body), false)
+				this.editor.commands.setContent(this.parseMessageBody(body), { emitUpdate: false })
 			}
 			if (this.message.content?.files?.length > 0) {
 				this.files = this.message.content.files
