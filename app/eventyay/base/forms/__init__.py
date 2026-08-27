@@ -150,9 +150,11 @@ class SettingsForm(i18nfield.forms.I18nFormMixin, HierarkeyForm):
         cleaned_data = super().clean()
         
         for k, v in cleaned_data.items():
-            if isinstance(v, UploadedFile) and k in [
-                'invoice_logo_image', 'startpage_header_image'
-            ]:
+            if isinstance(v, UploadedFile) and k in {
+                'logo_image', 'event_logo_image', 'event_preview_image', 'og_image',
+                'organizer_logo_image', 'organizer_header_image',
+                'invoice_logo_image', 'startpage_header_image',
+            }:
                 try:
                     opt = optimize_uploaded_image(v, k)
                     orig_name = os.path.splitext(v.name or 'upload')[0]

@@ -1,0 +1,13 @@
+--- app/tests/talk/orga/views/test_orga_views_submission.py
++++ app/tests/talk/orga/views/test_orga_views_submission.py
+@@ -311,6 +311,10 @@
+         follow=True,
+     )
+     submission.refresh_from_db()
++    
++    if submission.speakers.count() != 2:
++        print(response.content.decode('utf-8'))
++        raise Exception("Validation or processing failed")
+ 
+     assert submission.speakers.count() == 2
+     assert response.status_code == 200

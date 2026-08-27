@@ -1,0 +1,1436 @@
+diff --git a/app/eventyay/base/models/event.py b/app/eventyay/base/models/event.py
+index 34e00db3f7e..e4271d2cac8 100644
+--- a/app/eventyay/base/models/event.py
++++ b/app/eventyay/base/models/event.py
+@@ -1120,7 +1120,7 @@ def payment_term_last(self):
+             tz,
+         )
+ 
+-    def copy_data_from(self, other):
++    def copy_data_from(self, other, clone_options=None):
+         from ..signals import event_copy_data
+         from . import (
+             Product,
+@@ -1132,8 +1132,37 @@ def copy_data_from(self, other):
+             Quota,
+         )
+ 
+-        self.plugins = other.plugins
+-        self.is_public = other.is_public
++        clone_options = clone_options or {}
++        clone_common = clone_options.get('clone_common_data', True)
++        clone_settings = clone_options.get('clone_settings', True)
++        clone_design_texts = clone_options.get('clone_design_texts', True)
++        clone_email_settings = clone_options.get('clone_email_settings', True)
++        
++        clone_ticketing = clone_options.get('clone_ticketing_data', True)
++        clone_products = clone_options.get('clone_products', True)
++        clone_questions = clone_options.get('clone_questions', True)
++        clone_checkin_lists = clone_options.get('clone_checkin_lists', True)
++        clone_payment_settings = clone_options.get('clone_payment_settings', True)
++        
++        clone_talks = clone_options.get('clone_talk_data', True)
++        clone_cfp = clone_options.get('clone_cfp', True)
++        clone_session_types_tracks = clone_options.get('clone_session_types_tracks', True)
++        clone_review_settings = clone_options.get('clone_review_settings', True)
++
++        if clone_common and clone_settings:
++            self.plugins = other.plugins
++            self.is_public = other.is_public
++            self.location = other.location
++            self.geo_lat = other.geo_lat
++            self.geo_lon = other.geo_lon
++            self.currency = other.currency
++            
++            for extra_link in other.extra_links.all():
++                extra_link.pk = None
++                extra_link.event = self
++                extra_link.save()
++                extra_link.log_action('eventyay.object.cloned')
++
+         if other.date_admission:
+             self.date_admission = self.date_from + (other.date_admission - other.date_from)
+         self.testmode = other.testmode
+@@ -1144,194 +1173,327 @@ def copy_data_from(self, other):
+         self.log_action('eventyay.object.cloned', data={'source': other.slug, 'source_id': other.pk})
+ 
+         tax_map = {}
+-        for t in other.tax_rules.all():
+-            tax_map[t.pk] = t
+-            t.pk = None
+-            t.event = self
+-            t.save()
+-            t.log_action('eventyay.object.cloned')
++        if clone_ticketing and clone_products:
++            for t in other.tax_rules.all():
++                tax_map[t.pk] = t
++                t.pk = None
++                t.event = self
++                t.save()
++                t.log_action('eventyay.object.cloned')
+ 
+         category_map = {}
+-        for c in ProductCategory.objects.filter(event=other):
+-            category_map[c.pk] = c
+-            c.pk = None
+-            c.event = self
+-            c.save()
+-            c.log_action('eventyay.object.cloned')
+-
+         product_meta_properties_map = {}
+-        for imp in other.product_meta_properties.all():
+-            product_meta_properties_map[imp.pk] = imp
+-            imp.pk = None
+-            imp.event = self
+-            imp.save()
+-            imp.log_action('eventyay.object.cloned')
+-
+         product_map = {}
+         variation_map = {}
+-        for i in Product.objects.filter(event=other).prefetch_related('variations'):
+-            vars = list(i.variations.all())
+-            product_map[i.pk] = i
+-            i.pk = None
+-            i.event = self
+-            if i.picture:
+-                i.picture.save(i.picture.name, i.picture)
+-            if i.category_id:
+-                i.category = category_map[i.category_id]
+-            if i.tax_rule_id:
+-                i.tax_rule = tax_map[i.tax_rule_id]
+-            i.save()
+-            i.log_action('eventyay.object.cloned')
+-            for v in vars:
+-                variation_map[v.pk] = v
+-                v.pk = None
+-                v.product = i
+-                v.save()
+-
+-        for imv in ProductMetaValue.objects.filter(product__event=other).prefetch_related('product', 'property'):
+-            imv.pk = None
+-            imv.property = product_meta_properties_map[imv.property.pk]
+-            imv.product = product_map[imv.product.pk]
+-            imv.save()
+-
+-        for ia in ProductAddOn.objects.filter(base_product__event=other).prefetch_related(
+-            'base_product', 'addon_category'
+-        ):
+-            ia.pk = None
+-            ia.base_product = product_map[ia.base_product.pk]
+-            ia.addon_category = category_map[ia.addon_category.pk]
+-            ia.save()
+-
+-        for ia in ProductBundle.objects.filter(base_product__event=other).prefetch_related(
+-            'base_product', 'bundled_product', 'bundled_variation'
+-        ):
+-            ia.pk = None
+-            ia.base_product = product_map[ia.base_product.pk]
+-            ia.bundled_product = product_map[ia.bundled_product.pk]
+-            if ia.bundled_variation:
+-                ia.bundled_variation = variation_map[ia.bundled_variation.pk]
+-            ia.save()
+-
+-        for q in Quota.objects.filter(event=other, subevent__isnull=True).prefetch_related('products', 'variations'):
+-            products = list(q.products.all())
+-            vars = list(q.variations.all())
+-            oldid = q.pk
+-            q.pk = None
+-            q.event = self
+-            q.closed = False
+-            q.save()
+-            q.log_action('eventyay.object.cloned')
+-            for i in products:
+-                if i.pk in product_map:
+-                    q.products.add(product_map[i.pk])
+-            for v in vars:
+-                q.variations.add(variation_map[v.pk])
+-            self.products.filter(hidden_if_available_id=oldid).update(hidden_if_available=q)
+-
+         question_map = {}
+-        for q in Question.objects.filter(event=other).prefetch_related('products', 'options'):
+-            products = list(q.products.all())
+-            opts = list(q.options.all())
+-            question_map[q.pk] = q
+-            q.pk = None
+-            q.event = self
+-            q.save()
+-            q.log_action('eventyay.object.cloned')
+-
+-            for i in products:
+-                q.products.add(product_map[i.pk])
+-            for o in opts:
+-                o.pk = None
+-                o.question = q
+-                o.save()
+-
+-        for q in self.questions.filter(dependency_question__isnull=False):
+-            q.dependency_question = question_map[q.dependency_question_id]
+-            q.save(update_fields=['dependency_question'])
+-
+-        def _walk_rules(rules):
+-            if isinstance(rules, dict):
+-                for k, v in rules.items():
+-                    if k == 'lookup':
+-                        if v[0] == 'product':
+-                            v[1] = str(product_map.get(int(v[1]), 0).pk) if int(v[1]) in product_map else '0'
+-                        elif v[0] == 'variation':
+-                            v[1] = str(variation_map.get(int(v[1]), 0).pk) if int(v[1]) in variation_map else '0'
+-                    else:
+-                        _walk_rules(v)
+-            elif isinstance(rules, list):
+-                for i in rules:
+-                    _walk_rules(i)
+-
+         checkin_list_map = {}
+-        for cl in other.checkin_lists.filter(subevent__isnull=True).prefetch_related('limit_products'):
+-            products = list(cl.limit_products.all())
+-            checkin_list_map[cl.pk] = cl
+-            cl.pk = None
+-            cl.event = self
+-            rules = cl.rules
+-            _walk_rules(rules)
+-            cl.rules = rules
+-            cl.save()
+-            cl.log_action('eventyay.object.cloned')
+-            for i in products:
+-                cl.limit_products.add(product_map[i.pk])
+-
+-        if other.seating_plan:
+-            if other.seating_plan.organizer_id == self.organizer_id:
+-                self.seating_plan = other.seating_plan
+-            else:
+-                self.organizer.seating_plans.create(name=other.seating_plan.name, layout=other.seating_plan.layout)
+-            self.save()
+-
+-        for m in other.seat_category_mappings.filter(subevent__isnull=True):
+-            m.pk = None
+-            m.event = self
+-            m.product = product_map[m.product_id]
+-            m.save()
+-
+-        for s in other.seats.filter(subevent__isnull=True):
+-            s.pk = None
+-            s.event = self
+-            if s.product_id:
+-                s.product = product_map[s.product_id]
+-            s.save()
++        
++        if clone_ticketing:
++            if clone_products:
++                for c in ProductCategory.objects.filter(event=other):
++                    category_map[c.pk] = c
++                    c.pk = None
++                    c.event = self
++                    c.save()
++                    c.log_action('eventyay.object.cloned')
++    
++                for imp in other.product_meta_properties.all():
++                    product_meta_properties_map[imp.pk] = imp
++                    imp.pk = None
++                    imp.event = self
++                    imp.save()
++                    imp.log_action('eventyay.object.cloned')
++    
++                for i in Product.objects.filter(event=other).prefetch_related('variations'):
++                    vars = list(i.variations.all())
++                    product_map[i.pk] = i
++                    i.pk = None
++                    i.event = self
++                    if i.picture:
++                        i.picture.save(i.picture.name, i.picture)
++                    if i.category_id:
++                        i.category = category_map.get(i.category_id)
++                    if i.tax_rule_id:
++                        i.tax_rule = tax_map.get(i.tax_rule_id)
++                    i.save()
++                    i.log_action('eventyay.object.cloned')
++                    for v in vars:
++                        variation_map[v.pk] = v
++                        v.pk = None
++                        v.product = i
++                        v.save()
++    
++                for imv in ProductMetaValue.objects.filter(product__event=other).prefetch_related('product', 'property'):
++                    imv.pk = None
++                    imv.property = product_meta_properties_map.get(imv.property.pk)
++                    imv.product = product_map.get(imv.product.pk)
++                    imv.save()
++    
++                for ia in ProductAddOn.objects.filter(base_product__event=other).prefetch_related(
++                    'base_product', 'addon_category'
++                ):
++                    ia.pk = None
++                    ia.base_product = product_map.get(ia.base_product.pk)
++                    ia.addon_category = category_map.get(ia.addon_category.pk)
++                    ia.save()
++    
++                for ia in ProductBundle.objects.filter(base_product__event=other).prefetch_related(
++                    'base_product', 'bundled_product', 'bundled_variation'
++                ):
++                    ia.pk = None
++                    ia.base_product = product_map.get(ia.base_product.pk)
++                    ia.bundled_product = product_map.get(ia.bundled_product.pk)
++                    if ia.bundled_variation:
++                        ia.bundled_variation = variation_map.get(ia.bundled_variation.pk)
++                    ia.save()
++    
++                for q in Quota.objects.filter(event=other, subevent__isnull=True).prefetch_related('products', 'variations'):
++                    products = list(q.products.all())
++                    vars = list(q.variations.all())
++                    oldid = q.pk
++                    q.pk = None
++                    q.event = self
++                    q.closed = False
++                    q.save()
++                    q.log_action('eventyay.object.cloned')
++                    for i in products:
++                        if i.pk in product_map:
++                            q.products.add(product_map[i.pk])
++                    for v in vars:
++                        if v.pk in variation_map:
++                            q.variations.add(variation_map[v.pk])
++                    self.products.filter(hidden_if_available_id=oldid).update(hidden_if_available=q)
++
++            if clone_questions:
++                for q in Question.objects.filter(event=other).prefetch_related('products', 'options'):
++                    products = list(q.products.all())
++                    opts = list(q.options.all())
++                    question_map[q.pk] = q
++                    q.pk = None
++                    q.event = self
++                    q.save()
++                    q.log_action('eventyay.object.cloned')
++    
++                    for i in products:
++                        if i.pk in product_map:
++                            q.products.add(product_map[i.pk])
++                    for o in opts:
++                        o.pk = None
++                        o.question = q
++                        o.save()
++    
++                for q in self.questions.filter(dependency_question__isnull=False):
++                    q.dependency_question = question_map[q.dependency_question_id]
++                    q.save(update_fields=['dependency_question'])
++
++            def _walk_rules(rules):
++                if isinstance(rules, dict):
++                    for k, v in rules.items():
++                        if k == 'lookup':
++                            if v[0] == 'product':
++                                v[1] = str(product_map.get(int(v[1]), 0).pk) if int(v[1]) in product_map else '0'
++                            elif v[0] == 'variation':
++                                v[1] = str(variation_map.get(int(v[1]), 0).pk) if int(v[1]) in variation_map else '0'
++                        else:
++                            _walk_rules(v)
++                elif isinstance(rules, list):
++                    for i in rules:
++                        _walk_rules(i)
++
++            if clone_checkin_lists:
++                for cl in other.checkin_lists.filter(subevent__isnull=True).prefetch_related('limit_products'):
++                    products = list(cl.limit_products.all())
++                    checkin_list_map[cl.pk] = cl
++                    cl.pk = None
++                    cl.event = self
++                    rules = cl.rules
++                    _walk_rules(rules)
++                    cl.rules = rules
++                    cl.save()
++                    cl.log_action('eventyay.object.cloned')
++                    for i in products:
++                        if i.pk in product_map:
++                            cl.limit_products.add(product_map[i.pk])
++    
++                if other.seating_plan:
++                    if other.seating_plan.organizer_id == self.organizer_id:
++                        self.seating_plan = other.seating_plan
++                    else:
++                        self.organizer.seating_plans.create(name=other.seating_plan.name, layout=other.seating_plan.layout)
++                    self.save()
++
++            for m in other.seat_category_mappings.filter(subevent__isnull=True):
++                m.pk = None
++                m.event = self
++                if m.product_id in product_map:
++                    m.product = product_map[m.product_id]
++                    m.save()
++
++            for s in other.seats.filter(subevent__isnull=True):
++                s.pk = None
++                s.event = self
++                if s.product_id:
++                    s.product = product_map.get(s.product_id)
++                s.save()
+ 
+         skip_settings = (
+             'ticket_secrets_eventyay_sig1_pubkey',
+             'ticket_secrets_eventyay_sig1_privkey',
++            'frontpage_text',
+         )
+-        for s in other.settings._objects.all():
+-            if s.key in skip_settings:
+-                continue
++        def is_email_key(k):
++            return k.startswith('mail_') or k.startswith('smtp_')
++            
++        def is_design_key(k):
++            return k in (
++                'primary_color', 'theme_color_success', 'theme_color_danger', 'theme_color_background', 'theme_round_borders',
++                'hover_button_color', 'video_navigation_background_color', 'video_sidebar_text_color', 'video_sidebar_hover_color',
++                'primary_font', 'header_background_color', 'header_text_color', 'navigation_text_color', 'menu_text_scroll_over_color',
++                'logo_image', 'logo_image_large', 'event_logo_image', 'event_preview_image', 'og_image',
++                'banner_text', 'banner_text_bottom', 'header_pattern', 'logo_show_title',
++                'menu_label_tickets', 'menu_label_join_video'
++            )
+ 
+-            s.object = self
+-            s.pk = None
+-            if s.value.startswith('file://'):
+-                fi = default_storage.open(s.value[7:], 'rb')
+-                nonce = get_random_string(length=8)
+-                # TODO: make sure pub is always correct
+-                fname = 'pub/%s/%s/%s.%s.%s' % (
+-                    self.organizer.slug,
+-                    self.slug,
+-                    s.key,
+-                    nonce,
+-                    s.value.split('.')[-1],
+-                )
+-                newname = default_storage.save(fname, fi)
+-                s.value = 'file://' + newname
+-                s.save()
+-            elif s.key == 'tax_rate_default':
+-                try:
+-                    if int(s.value) in tax_map:
+-                        s.value = tax_map.get(int(s.value)).pk
+-                        s.save()
+-                except ValueError:
+-                    pass
+-            else:
+-                s.save()
++        def is_payment_key(k):
++            return k.startswith('payment_') or k.startswith('invoice_')
+ 
+-        self.settings.flush()
++        if clone_common or clone_payment_settings:
++            for s in other.settings._objects.all():
++                if s.key in skip_settings:
++                    continue
++                if is_email_key(s.key) and not (clone_common and clone_email_settings):
++                    continue
++                if is_design_key(s.key) and not (clone_common and clone_design_texts):
++                    continue
++                if is_payment_key(s.key) and not clone_payment_settings:
++                    continue
++                if not is_email_key(s.key) and not is_design_key(s.key) and not is_payment_key(s.key) and not (clone_common and clone_settings):
++                    continue
++
++                s.object = self
++                s.pk = None
++                if s.value.startswith('file://'):
++                    fi = default_storage.open(s.value[7:], 'rb')
++                    nonce = get_random_string(length=8)
++                    # TODO: make sure pub is always correct
++                    fname = 'pub/%s/%s/%s.%s.%s' % (
++                        self.organizer.slug,
++                        self.slug,
++                        s.key,
++                        nonce,
++                        s.value.split('.')[-1],
++                    )
++                    newname = default_storage.save(fname, fi)
++                    s.value = 'file://' + newname
++                    s.save()
++                elif s.key == 'tax_rate_default':
++                    try:
++                        if int(s.value) in tax_map:
++                            s.value = tax_map.get(int(s.value)).pk
++                            s.save()
++                    except ValueError:
++                        pass
++                else:
++                    s.save()
++
++            self.settings.flush()
++            
++        if clone_talks:
++            from eventyay.base.models.type import SubmissionType
++            from eventyay.base.models.track import Track
++            from eventyay.base.models.question import TalkQuestion
++            from eventyay.base.models.access_code import SubmitterAccessCode
++            
++            if hasattr(self, 'cfp') and getattr(self.cfp, 'default_type_id', None):
++                self.cfp.default_type = None
++                self.cfp.save(update_fields=['default_type'])
++            
++            if clone_session_types_tracks:
++                SubmissionType.objects.filter(event=self).delete()
++                submission_type_map = {}
++                for st in other.submission_types.all():
++                    submission_type_map[st.pk] = st
++                    st.pk = None
++                    st.event = self
++                    st.save()
++                    st.log_action('eventyay.object.cloned')
++    
++                track_map = {}
++                for tr in other.tracks.all():
++                    track_map[tr.pk] = tr
++                    tr.pk = None
++                    tr.event = self
++                    tr.save()
++                    tr.log_action('eventyay.object.cloned')
++                
++                talk_question_map = {}
++                talk_question_deps = {}
++                for tq in other.talkquestions.prefetch_related('options', 'tracks', 'submission_types'):
++                    tq_tracks = list(tq.tracks.all())
++                    tq_submission_types = list(tq.submission_types.all())
++                    tq_options = list(tq.options.all())
++                    old_dep_id = tq.dependency_question_id
++                    
++                    talk_question_map[tq.pk] = tq
++                    tq.pk = None
++                    tq.event = self
++                    tq.dependency_question = None
++                    tq.save()
++                    tq.log_action('eventyay.object.cloned')
++                    
++                    if old_dep_id:
++                        talk_question_deps[tq] = old_dep_id
++                    
++                    for o in tq_options:
++                        o.pk = None
++                        o.question = tq
++                        o.save()
++                    for tr in tq_tracks:
++                        tq.tracks.add(track_map[tr.pk])
++                    for st in tq_submission_types:
++                        tq.submission_types.add(submission_type_map[st.pk])
++                        
++                for tq, old_dep_id in talk_question_deps.items():
++                    tq.dependency_question = talk_question_map.get(old_dep_id)
++                    if tq.dependency_question:
++                        tq.save(update_fields=['dependency_question'])
++                
++                if hasattr(self, 'cfp') and hasattr(other, 'cfp') and getattr(other.cfp, 'default_type_id', None):
++                    self.cfp.default_type = submission_type_map.get(other.cfp.default_type_id)
++                    self.cfp.save(update_fields=['default_type'])
++                    
++                for ac in other.submitter_access_codes.all():
++                    ac.pk = None
++                    ac.event = self
++                    if ac.track_id:
++                        ac.track = track_map.get(ac.track_id)
++                    if ac.submission_type_id:
++                        ac.submission_type = submission_type_map.get(ac.submission_type_id)
++                    ac.save()
++                    ac.log_action('eventyay.object.cloned')
++
++            if clone_review_settings:
++                from eventyay.base.models import ReviewPhase, ReviewScoreCategory, ReviewScore
++
++                self.review_phases.all().delete()
++                for rp in other.review_phases.all():
++                    rp.pk = None
++                    rp.event = self
++                    rp.save()
++                    rp.log_action('eventyay.object.cloned')
++
++                self.score_categories.all().delete()
++                for sc in other.score_categories.prefetch_related('scores'):
++                    scores = list(sc.scores.all())
++                    sc.pk = None
++                    sc.event = self
++                    sc.save()
++                    sc.log_action('eventyay.object.cloned')
++                    for score in scores:
++                        score.pk = None
++                        score.category = sc
++                        score.save()
++        
+         event_copy_data.send(
+             sender=self,
+             other=other,
+@@ -1341,6 +1503,7 @@ def _walk_rules(rules):
+             variation_map=variation_map,
+             question_map=question_map,
+             checkin_list_map=checkin_list_map,
++            clone_options=clone_options,
+         )
+ 
+     def decode_token(self, token, allow_raise=False):
+@@ -1679,7 +1842,6 @@ def clone_from(self, old, new_secrets):
+ 
+         if self.pk == old.pk:
+             raise ValueError('Illegal attempt to clone into same event')
+-
+         def clone_stored_files(*, inst=None, attrs=None, struct=None, url=None):
+             if inst and attrs:
+                 for a in attrs:
+diff --git a/app/eventyay/control/templates/pretixcontrol/event/settings.html b/app/eventyay/control/templates/pretixcontrol/event/settings.html
+index 766a3a5f7cc..8f0a6168b76 100644
+--- a/app/eventyay/control/templates/pretixcontrol/event/settings.html
++++ b/app/eventyay/control/templates/pretixcontrol/event/settings.html
+@@ -157,6 +157,12 @@ <h4>{% translate "Changes to existing orders" %}</h4>
+                 {% trans "Save" %}
+             </button>
+             <div class="pull-left event-settings-danger-actions">
++                <a href="{% url "eventyay_common:event.update" organizer=request.organizer.slug event=request.event.slug %}#danger-zone-tab"
++                   class="btn btn-danger btn-lg">
++                    <span class="fa fa-trash"></span>
++                    {% trans "Cancel or delete event" %}
++                </a>
++
+                 <a href="{% url "eventyay_common:events.add" %}?clone={{ request.event.pk }}"
+                    class="btn btn-default btn-lg">
+                     <span class="fa fa-copy"></span>
+diff --git a/app/eventyay/eventyay_common/forms/event.py b/app/eventyay/eventyay_common/forms/event.py
+index aa638e5655c..b79ba16c01b 100644
+--- a/app/eventyay/eventyay_common/forms/event.py
++++ b/app/eventyay/eventyay_common/forms/event.py
+@@ -25,6 +25,7 @@
+ from eventyay.base.settings import validate_event_settings
+ from eventyay.common.language import get_language_choices_native_with_ui_name
+ from eventyay.common.urls import get_file_url_path, is_http_url
++from eventyay.multidomain.urlreverse import build_absolute_uri
+ from eventyay.control.forms import MultipleLanguagesWidget, SlugWidget, SplitDateTimeField, SplitDateTimePickerWidget
+ from eventyay.helpers.image_optimize import optimize_uploaded_image
+ from eventyay.multidomain.models import KnownDomain
+@@ -331,3 +332,143 @@ class Meta:
+             'date_to': SplitDateTimePickerWidget(attrs={'data-date-after': '#id_date_from_0'}),
+             'date_admission': SplitDateTimePickerWidget(attrs={'data-date-default': '#id_date_from_0'}),
+         }
++
++
++class EventCloneForm(I18nModelForm):
++    locales = forms.MultipleChoiceField(
++        choices=django_settings.LANGUAGES,
++        label=_('Event languages'),
++        widget=MultipleLanguagesWidget,
++        help_text=_(
++            "Users will be able to use eventyay in these languages, and you will be able to provide all texts in "
++            "these languages. If you don't provide a text in the language a user selects, it will be shown in your "
++            "event's default language instead."
++        ),
++    )
++    clone_common_data = forms.BooleanField(
++        label=_('Common event Configuration'),
++        help_text=_('Includes general settings, design elements, and email configurations.'),
++        required=False,
++        initial=True,
++    )
++    clone_settings = forms.BooleanField(
++        label=_('General settings'),
++        help_text=_('Location, currency, plugins, header/footer links.'),
++        required=False,
++        initial=True,
++    )
++    clone_design_texts = forms.BooleanField(
++        label=_('Design and texts'),
++        help_text=_('Colors, logo, custom CSS.'),
++        required=False,
++        initial=True,
++    )
++    clone_email_settings = forms.BooleanField(
++        label=_('Email settings'),
++        help_text=_('Email templates and SMTP configuration.'),
++        required=False,
++        initial=True,
++    )
++
++    clone_ticketing_data = forms.BooleanField(
++        label=_('Ticketing Configuration'),
++        help_text=_('Includes products, quotas, attendee questions, and check-in lists.'),
++        required=False,
++        initial=True,
++    )
++    clone_products = forms.BooleanField(
++        label=_('Products & Quotas'),
++        help_text=_('Ticket products, categories, quotas, tax rules, add-ons.'),
++        required=False,
++        initial=True,
++    )
++    clone_questions = forms.BooleanField(
++        label=_('Questions'),
++        help_text=_('Order and attendee questions.'),
++        required=False,
++        initial=True,
++    )
++    clone_checkin_lists = forms.BooleanField(
++        label=_('Check-in lists'),
++        help_text=_('Check-in lists configuration.'),
++        required=False,
++        initial=True,
++    )
++    clone_payment_settings = forms.BooleanField(
++        label=_('Payment settings'),
++        help_text=_('Payment providers and invoicing.'),
++        required=False,
++        initial=True,
++    )
++
++    clone_talk_data = forms.BooleanField(
++        label=_('Talk Configuration'),
++        help_text=_('Includes call for speakers, session tracks, and review settings.'),
++        required=False,
++        initial=True,
++    )
++    clone_cfp = forms.BooleanField(
++        label=_('Call for speakers'),
++        help_text=_('Call for speakers configuration and basic text.'),
++        required=False,
++        initial=True,
++    )
++    clone_session_types_tracks = forms.BooleanField(
++        label=_('Session types & tracks'),
++        help_text=_('Session types and tracks.'),
++        required=False,
++        initial=True,
++    )
++    clone_review_settings = forms.BooleanField(
++        label=_('Review settings'),
++        help_text=_('Review phases and review scoring categories.'),
++        required=False,
++        initial=True,
++    )
++
++    class Meta:
++        model = Event
++        fields = [
++            'locales',
++            'name',
++            'slug',
++            'date_from',
++            'date_to',
++            'timezone',
++            'locale',
++        ]
++        field_classes = {
++            'date_from': SplitDateTimeField,
++            'date_to': SplitDateTimeField,
++        }
++        widgets = {
++            'slug': SlugWidget(attrs={'data-slug-source': 'name'}),
++            'date_from': SplitDateTimePickerWidget(),
++            'date_to': SplitDateTimePickerWidget(attrs={'data-date-after': '#id_date_from_0'}),
++        }
++
++    def __init__(self, *args, **kwargs):
++        self.organizer = kwargs.pop('organizer', None)
++        self.locales = kwargs.get('locales')
++        if self.locales is None and kwargs.get('initial'):
++            self.locales = kwargs['initial'].get('locales')
++        if not self.locales:
++            self.locales = ['en']
++        kwargs['locales'] = self.locales
++        super().__init__(*args, **kwargs)
++        if self.organizer:
++            self.fields['slug'].widget.organizer = self.organizer
++            self.fields['slug'].widget.prefix = build_absolute_uri(self.organizer, 'presale:organizer.index')
++        self.fields['slug'].widget.attrs.setdefault('class', 'form-control')
++        self.fields['timezone'].choices = ((a, a) for a in common_timezones)
++
++        locale_choices = get_language_choices_native_with_ui_name()
++        self.fields['locale'].choices = [(code, label) for code, label in locale_choices if code in self.locales]
++
++    def clean_slug(self):
++        slug = self.cleaned_data.get('slug')
++        if Event.objects.filter(slug=slug, organizer=self.organizer).exists():
++            raise forms.ValidationError(
++                _('You already have an event with this short name. Please choose another one.')
++            )
++        return slug
+diff --git a/app/eventyay/eventyay_common/templates/eventyay_common/event/clone.html b/app/eventyay/eventyay_common/templates/eventyay_common/event/clone.html
+new file mode 100644
+index 00000000000..94aa4737649
+--- /dev/null
++++ b/app/eventyay/eventyay_common/templates/eventyay_common/event/clone.html
+@@ -0,0 +1,102 @@
++{% extends "eventyay_common/event/settings_base.html" %}
++{% load i18n static %}
++{% load bootstrap3 %}
++{% block title %}{% trans "Clone event" %}{% endblock %}
++
++
++{% block inside %}
++<h1>{% trans "Clone event" %}</h1>
++
++<div class="alert alert-info">
++    {% trans "You can create a new event that is a copy of this event. Please enter a name, short form, and the new dates for the new event." %}
++    <br><br>
++    {% trans "By default, the following Configuration is NOT cloned:" %}
++    <ul>
++        <li>{% trans "Orders, attendees, payments, invoices, check-ins" %}</li>
++        <li>{% trans "Submitted proposals, reviews, accepted sessions" %}</li>
++        <li>{% trans "Speaker accounts or profiles linked to submitted proposals" %}</li>
++        <li>{% trans "Message history, logs, or any personal data" %}</li>
++    </ul>
++</div>
++
++<form action="" method="post" class="form-horizontal event-clone-form">
++    {% csrf_token %}
++    {% bootstrap_form_errors form %}
++
++    <fieldset>
++        <legend>{% trans "New Event details" %}</legend>
++        {% bootstrap_field form.locales layout="horizontal" %}
++        <div id="event-name-field">
++            {% bootstrap_field form.name layout="horizontal" %}
++        </div>
++        
++        <div class="form-group{% if form.slug.errors %} has-error{% endif %}">
++            <label class="col-md-3 control-label" for="{{ form.slug.id_for_label }}">{{ form.slug.label }}</label>
++            <div class="col-md-9 form-inline">
++                <button class="btn btn-default pull-right flip" type="button" id="event-slug-random-generate"
++                        data-rng-url="{% url 'control:events.add.slugrng' organizer=request.event.organizer.slug %}">
++                    {% trans "Set to random" %}
++                </button>
++                {{ form.slug }}
++                {% if form.slug.errors %}
++                    <span class="text-danger ml-2"><small>{% trans "Slug not available" %}</small></span>
++                {% endif %}
++                <div class="help-block">
++                    {% blocktrans trimmed %}
++                    This is the address your event will be available at. Should be short, only contain lowercase letters
++                    and numbers, and must be unique. We recommend some kind of abbreviation with less than 30 characters
++                    that can be easily remembered. You cannot change the slug later on! If you don't provide a slug,
++                    a random one will be generated for you.
++                    {% endblocktrans %}
++                </div>
++            </div>
++        </div>
++
++        {% bootstrap_field form.date_from layout="horizontal" %}
++        {% bootstrap_field form.date_to layout="horizontal" %}
++        {% bootstrap_field form.timezone layout="horizontal" %}
++        {% bootstrap_field form.locale layout="horizontal" %}
++    </fieldset>
++
++    <fieldset>
++        <legend>{% trans "Configuration to clone" %}</legend>
++        
++        {% bootstrap_field form.clone_common_data layout="control" %}
++        <div class="team-permission-children" data-parent="{{ form.clone_common_data.auto_id }}">
++            {% bootstrap_field form.clone_settings layout="control" %}
++            {% bootstrap_field form.clone_design_texts layout="control" %}
++            {% bootstrap_field form.clone_email_settings layout="control" %}
++        </div>
++
++        {% bootstrap_field form.clone_ticketing_data layout="control" %}
++        <div class="team-permission-children" data-parent="{{ form.clone_ticketing_data.auto_id }}">
++            {% bootstrap_field form.clone_products layout="control" %}
++            {% bootstrap_field form.clone_questions layout="control" %}
++            {% bootstrap_field form.clone_checkin_lists layout="control" %}
++            {% bootstrap_field form.clone_payment_settings layout="control" %}
++        </div>
++
++        {% bootstrap_field form.clone_talk_data layout="control" %}
++        <div class="team-permission-children" data-parent="{{ form.clone_talk_data.auto_id }}">
++            {% bootstrap_field form.clone_cfp layout="control" %}
++            {% bootstrap_field form.clone_session_types_tracks layout="control" %}
++            {% bootstrap_field form.clone_review_settings layout="control" %}
++        </div>
++    </fieldset>
++
++    <div class="form-group submit-group">
++        <button type="submit" class="btn btn-primary btn-save">
++            {% trans "Clone event" %}
++        </button>
++        <a href="{% url 'eventyay_common:event.update' organizer=request.event.organizer.slug event=request.event.slug %}" class="btn btn-default btn-cancel">
++            {% trans "Cancel" %}
++        </a>
++    </div>
++</form>
++{% endblock %}
++
++{% block custom_header %}
++{{ block.super }}
++<script src="{% static 'eventyay-common/js/ui/team.js' %}"></script>
++<script defer src="{% static 'eventyay-common/js/ui/event-create.js' %}"></script>
++{% endblock %}
+diff --git a/app/eventyay/eventyay_common/templates/eventyay_common/event/fragment_event_clone_i18n_fields.html b/app/eventyay/eventyay_common/templates/eventyay_common/event/fragment_event_clone_i18n_fields.html
+new file mode 100644
+index 00000000000..9b7c458c99c
+--- /dev/null
++++ b/app/eventyay/eventyay_common/templates/eventyay_common/event/fragment_event_clone_i18n_fields.html
+@@ -0,0 +1,4 @@
++{% load bootstrap3 %}
++<template id="event-name-field-template">
++    {% bootstrap_field form.name layout="horizontal" %}
++</template>
+diff --git a/app/eventyay/eventyay_common/templates/eventyay_common/event/settings.html b/app/eventyay/eventyay_common/templates/eventyay_common/event/settings.html
+index 20b1e8761a3..7ff62600bbc 100644
+--- a/app/eventyay/eventyay_common/templates/eventyay_common/event/settings.html
++++ b/app/eventyay/eventyay_common/templates/eventyay_common/event/settings.html
+@@ -415,10 +415,17 @@ <h4 class="text-danger">{% trans "Permanent deletion" %}</h4>
+             </div>
+         </fieldset>
+     </div>
+-    <div class="form-group submit-group">
++    <div class="form-group submit-group event-settings-submit">
+         <button type="submit" class="btn btn-primary btn-save">
+             {% trans "Save" %}
+         </button>
++        <div class="pull-left event-settings-danger-actions">
++            <a href="{% url "eventyay_common:event.clone" organizer=request.event.organizer.slug event=request.event.slug %}"
++               class="btn btn-default btn-lg">
++                <span class="fa fa-copy"></span>
++                {% trans "Clone event" %}
++            </a>
++        </div>
+     </div>
+ 
+     {% comment %}
+diff --git a/app/eventyay/eventyay_common/urls.py b/app/eventyay/eventyay_common/urls.py
+index 45b4236b6a4..64523d3101a 100644
+--- a/app/eventyay/eventyay_common/urls.py
++++ b/app/eventyay/eventyay_common/urls.py
+@@ -161,6 +161,7 @@ class DashboardView(TemplateView):
+                 ),
+                 path('plugins/', event.EventPlugins.as_view(), name='event.plugins'),
+                 path('live/', event.EventLive.as_view(), name='event.live'),
++                path('settings/clone/', event.EventCloneView.as_view(), name='event.clone'),
+                 path('video-access/', event.VideoAccessAuthenticator.as_view(), name='event.create_access_to_video'),
+             ]
+         ),
+diff --git a/app/eventyay/eventyay_common/views/event.py b/app/eventyay/eventyay_common/views/event.py
+index 1b2c7dfebee..eda6283f45e 100644
+--- a/app/eventyay/eventyay_common/views/event.py
++++ b/app/eventyay/eventyay_common/views/event.py
+@@ -27,7 +27,7 @@
+ from django.utils.functional import cached_property
+ from django.utils.timezone import get_current_timezone_name
+ from django.utils.translation import gettext_lazy as _
+-from django.views.generic import ListView, TemplateView
++from django.views.generic import FormView, ListView, TemplateView
+ from django_scopes import scope
+ from zoneinfo import ZoneInfo
+ from rest_framework import views
+@@ -87,7 +87,7 @@
+ from eventyay.eventyay_common.video.permissions import collect_user_video_traits
+ from eventyay.helpers.plugin_enable import is_video_enabled
+ from eventyay.multidomain.urlreverse import build_absolute_uri
+-from ..forms.event import EventUpdateForm
++from ..forms.event import EventCloneForm, EventUpdateForm
+ 
+ logger = logging.getLogger(__name__)
+ 
+@@ -1444,3 +1444,175 @@ def get(self, request):
+                 results.append({'name': event.name, 'slug': event.slug, 'organizer': event.organizer.slug})
+ 
+         return JsonResponse(results, safe=False)
++
++
++class EventCloneView(EventSettingsViewMixin, EventPermissionRequiredMixin, FormView):
++    template_name = 'eventyay_common/event/clone.html'
++    permission = 'can_change_event_settings'
++    form_class = EventCloneForm
++
++    def post(self, request, *args, **kwargs):
++        if request.POST.get('ajax') == 'event-i18n-fields':
++            return self.render_event_i18n_fields()
++        return super().post(request, *args, **kwargs)
++
++    def render_event_i18n_fields(self):
++        valid_locale_codes = {code for code, _name in settings.LANGUAGES}
++        locales = [
++            locale for locale in self.request.POST.getlist('locales') if locale in valid_locale_codes
++        ]
++        if not locales:
++            from django.http import JsonResponse
++            from django.utils.translation import gettext as _
++            return JsonResponse({'error': _('Select at least one active language.')}, status=400)
++
++        clone_from = self.request.event
++        user_tz = ZoneInfo(get_current_timezone_name())
++        now_dt = datetime.now(user_tz)
++        default_start = now_dt + timedelta(days=90)
++        default_start = default_start.replace(hour=9, minute=0, second=0, microsecond=0)
++        default_end = default_start.replace(hour=17, minute=0, second=0, microsecond=0)
++
++        initial = {
++            'name': clone_from.name,
++            'date_from': default_start,
++            'date_to': default_end,
++            'timezone': clone_from.settings.get('timezone') or clone_from.timezone,
++            'locale': clone_from.settings.get('locale') or clone_from.locale,
++            'locales': locales,
++        }
++        name_values = {}
++        for index, locale in enumerate(locales):
++            key = f'name_{index}'
++            if key in self.request.POST:
++                value = self.request.POST.get(key, '').strip()
++                if value:
++                    name_values[locale] = value
++        if name_values:
++            initial['name'] = name_values
++
++        form = self.form_class(
++            data=None,
++            initial=initial,
++            organizer=clone_from.organizer,
++            locales=locales,
++        )
++
++        from django.template.loader import render_to_string
++        from django.http import JsonResponse
++        fields = render_to_string(
++            'eventyay_common/event/fragment_event_clone_i18n_fields.html',
++            {'form': form},
++            request=self.request,
++        )
++        return JsonResponse({'fields': fields})
++
++    def get_form_kwargs(self):
++        kwargs = super().get_form_kwargs()
++        kwargs['organizer'] = self.request.event.organizer
++        clone_from = self.request.event
++        clone_locales = list(clone_from.settings.get('locales') or [clone_from.locale or 'en'])
++        kwargs['locales'] = clone_locales
++        user_tz = ZoneInfo(get_current_timezone_name())
++        now_dt = datetime.now(user_tz)
++        default_start = now_dt + timedelta(days=90)
++        default_start = default_start.replace(hour=9, minute=0, second=0, microsecond=0)
++        default_end = default_start.replace(hour=17, minute=0, second=0, microsecond=0)
++
++        kwargs['initial'] = {
++            'name': clone_from.name,
++            'date_from': default_start,
++            'date_to': default_end,
++            'timezone': clone_from.settings.get('timezone') or clone_from.timezone,
++            'locale': clone_from.settings.get('locale') or clone_from.locale,
++            'locales': clone_locales,
++            'clone_common_data': True,
++            'clone_ticketing_data': True,
++            'clone_talk_data': True,
++        }
++        return kwargs
++
++    def get_context_data(self, **kwargs):
++        context = super().get_context_data(**kwargs)
++        context['organizer_slug_rng_url'] = reverse('control:events.add.slugrng', kwargs={'organizer': self.request.event.organizer.slug})
++        return context
++
++    def dispatch(self, request, *args, **kwargs):
++        if not check_create_permission(request):
++            raise PermissionDenied(_('You do not have permission to create events.'))
++        return super().dispatch(request, *args, **kwargs)
++
++    @transaction.atomic
++    def form_valid(self, form):
++        old_event = self.request.event
++        new_event = form.instance
++        
++        clone_options = {
++            'clone_common_data': form.cleaned_data.get('clone_common_data'),
++            'clone_settings': form.cleaned_data.get('clone_settings'),
++            'clone_design_texts': form.cleaned_data.get('clone_design_texts'),
++            'clone_email_settings': form.cleaned_data.get('clone_email_settings'),
++            'clone_ticketing_data': form.cleaned_data.get('clone_ticketing_data'),
++            'clone_products': form.cleaned_data.get('clone_products'),
++            'clone_questions': form.cleaned_data.get('clone_questions'),
++            'clone_checkin_lists': form.cleaned_data.get('clone_checkin_lists'),
++            'clone_payment_settings': form.cleaned_data.get('clone_payment_settings'),
++            'clone_talk_data': form.cleaned_data.get('clone_talk_data'),
++            'clone_cfp': form.cleaned_data.get('clone_cfp'),
++            'clone_session_types_tracks': form.cleaned_data.get('clone_session_types_tracks'),
++            'clone_review_settings': form.cleaned_data.get('clone_review_settings'),
++        }
++
++        new_event.organizer = old_event.organizer
++        if clone_options.get('clone_common_data') and clone_options.get('clone_settings'):
++            new_event.plugins = old_event.plugins
++        new_event.has_subevents = old_event.has_subevents
++        new_event.is_video_creation = old_event.is_video_creation
++        new_event.testmode = False
++        new_event.private_testmode = False
++        
++        new_event.timezone = form.cleaned_data['timezone']
++        new_event.locale = form.cleaned_data['locale']
++        form.save()
++
++        new_event.clone_from(old_event, new_secrets=True)
++        new_event.copy_data_from(old_event, clone_options=clone_options)
++        
++        new_event.settings.set('locales', form.cleaned_data['locales'])
++        
++        if clone_options.get('clone_talk_data') and clone_options.get('clone_cfp', True) and getattr(old_event, 'cfp', None):
++            new_event.cfp.copy_data_from(old_event.cfp)
++
++        with scope(organizer=new_event.organizer):
++            if not new_event.checkin_lists.exists():
++                new_event.checkin_lists.create(name=_('Default'), all_products=True)
++            for team in self.request.user.teams.filter(organizer=new_event.organizer):
++                if not team.all_events and team.can_create_events:
++                    team.limit_events.add(new_event)
++
++        new_event.set_defaults()
++        
++        # Override the values potentially cloned from the old event to the ones chosen in the form
++        new_event.timezone = form.cleaned_data['timezone']
++        new_event.locale = form.cleaned_data['locale']
++        new_event.save(update_fields=['timezone', 'locale'])
++        new_event.settings.set('timezone', form.cleaned_data['timezone'])
++        new_event.settings.set('locale', form.cleaned_data['locale'])
++        
++        cloned_locales = new_event.settings.get('locales', as_type=list) or []
++        if form.cleaned_data['locale'] not in cloned_locales:
++            cloned_locales.append(form.cleaned_data['locale'])
++        new_event.settings.set('locales', cloned_locales)
++
++        new_event.log_action(
++            action='eventyay.event.added',
++            user=self.request.user,
++        )
++
++        messages.success(self.request, _('Event has been cloned successfully.'))
++        return redirect(
++            reverse(
++                'eventyay_common:event.update',
++                kwargs={'event': new_event.slug, 'organizer': new_event.organizer.slug},
++            )
++        )
+diff --git a/app/eventyay/plugins/badges/signals.py b/app/eventyay/plugins/badges/signals.py
+index 1a0420a8a46..d8147590245 100644
+--- a/app/eventyay/plugins/badges/signals.py
++++ b/app/eventyay/plugins/badges/signals.py
+@@ -96,6 +96,9 @@ def copy_product(sender, source, target, **kwargs):
+ 
+ @receiver(signal=event_copy_data, dispatch_uid='badges_copy_data')
+ def event_copy_data_receiver(sender, other, question_map, product_map, voucher_map=None, **kwargs):
++    clone_options = kwargs.get('clone_options') or {}
++    if not clone_options.get('clone_ticketing_data', True):
++        return
+     layout_map = {}
+     for bl in other.badge_layouts.all():
+         oldid = bl.pk
+diff --git a/app/eventyay/plugins/ticketoutputpdf/signals.py b/app/eventyay/plugins/ticketoutputpdf/signals.py
+index 4f7f35c7d62..08d8762add0 100644
+--- a/app/eventyay/plugins/ticketoutputpdf/signals.py
++++ b/app/eventyay/plugins/ticketoutputpdf/signals.py
+@@ -76,6 +76,9 @@ def copy_product(sender, source, target, **kwargs):
+ def pdf_event_copy_data_receiver(sender, other, product_map, question_map, **kwargs):
+     if sender.ticket_layouts.exists():  # idempotency
+         return
++    clone_options = kwargs.get('clone_options') or {}
++    if not clone_options.get('clone_ticketing_data', True):
++        return
+     layout_map = {}
+     for bl in other.ticket_layouts.all():
+         oldid = bl.pk
+diff --git a/app/eventyay/presale/signals.py b/app/eventyay/presale/signals.py
+index 0302c7a3669..805755bd864 100644
+--- a/app/eventyay/presale/signals.py
++++ b/app/eventyay/presale/signals.py
+@@ -360,6 +360,10 @@ def w_pos_info(sender: Event, request, order: Order, position, **kwargs):
+ 
+ @receiver(signal=event_copy_data, dispatch_uid='venueless_event_copy_data')
+ def venueless_event_copy_data(sender, other, product_map, question_map, **kwargs):
++    clone_options = kwargs.get('clone_options') or {}
++    if not clone_options.get('clone_ticketing_data', True):
++        return
++
+     sender.settings['venueless_products'] = [
+         product_map[product].pk
+         for product in other.settings.get('venueless_products', default=[])
+diff --git a/app/eventyay/static/eventyay-common/js/ui/event-create.js b/app/eventyay/static/eventyay-common/js/ui/event-create.js
+index e7a64717421..4422f7b7640 100644
+--- a/app/eventyay/static/eventyay-common/js/ui/event-create.js
++++ b/app/eventyay/static/eventyay-common/js/ui/event-create.js
+@@ -19,13 +19,13 @@
+     }
+ 
+     function getCheckedLocalesFromDOM() {
+-        var hiddenSelect = document.querySelector('select[name="foundation-locales"]');
++        var hiddenSelect = document.querySelector('select[name="foundation-locales"], select[name="locales"]');
+         if (hiddenSelect) {
+             return Array.from(hiddenSelect.selectedOptions).map(function (option) {
+                 return option.value;
+             });
+         }
+-        return Array.from(document.querySelectorAll('input[name="foundation-locales"]:checked')).map(
++        return Array.from(document.querySelectorAll('input[name="foundation-locales"]:checked, input[name="locales"]:checked')).map(
+             function (input) {
+                 return input.value;
+             }
+@@ -41,7 +41,7 @@
+         });
+ 
+         if (currentLocaleOrder.length === 0 && checkedLocales.length > 0) {
+-            var initialDefaultInput = document.getElementById("id_basics-locale");
++            var initialDefaultInput = document.getElementById("id_basics-locale") || document.getElementById("id_locale");
+             var initialDefault = initialDefaultInput ? initialDefaultInput.value : "";
+             if (initialDefault && checkedSet.has(initialDefault)) {
+                 currentLocaleOrder.push(initialDefault);
+@@ -61,15 +61,15 @@
+     }
+ 
+     function isActiveLanguageControl(target) {
+-        if (target.matches('input[name="foundation-locales"], select[name="foundation-locales"]')) {
++        if (target.matches('input[name="foundation-locales"], select[name="foundation-locales"], input[name="locales"], select[name="locales"]')) {
+             return true;
+         }
+         var wrapper = target.closest(".multi-language-select-wrapper");
+-        return Boolean(wrapper && wrapper.querySelector('select[name="foundation-locales"]'));
++        return Boolean(wrapper && wrapper.querySelector('select[name="foundation-locales"], select[name="locales"]'));
+     }
+ 
+     function getLanguageLabel(code) {
+-        var cell = document.querySelector('.language-grid-cell input[name="foundation-locales"][value="' + code + '"]');
++        var cell = document.querySelector('.language-grid-cell input[name="foundation-locales"][value="' + code + '"], .language-grid-cell input[name="locales"][value="' + code + '"]');
+         if (cell) {
+             var gridCell = cell.closest('.language-grid-cell');
+             if (gridCell && gridCell.dataset.languageName) {
+@@ -203,7 +203,7 @@
+     }
+ 
+     function syncLocaleOrder() {
+-        var hiddenLocaleInput = document.getElementById("id_basics-locale");
++        var hiddenLocaleInput = document.getElementById("id_basics-locale") || document.getElementById("id_locale");
+         updateLocaleOrderList();
+         if (hiddenLocaleInput) {
+             var checkedLocales = getCheckedLocalesFromDOM();
+@@ -243,7 +243,7 @@
+             container.appendChild(hidden);
+         });
+         form.appendChild(container);
+-        var hiddenLocaleInput = document.getElementById("id_basics-locale");
++        var hiddenLocaleInput = document.getElementById("id_basics-locale") || document.getElementById("id_locale");
+         if (hiddenLocaleInput && !hiddenLocaleInput.value) {
+             hiddenLocaleInput.value = localesToSubmit[0] || "en";
+         }
+@@ -258,7 +258,7 @@
+ 
+     function rememberEventI18nValues() {
+         document.querySelectorAll(
+-            '#event-name-field input[name^="basics-name_"], #event-location-field textarea[name^="basics-location_"]'
++            '#event-name-field input[name^="basics-name_"], #event-location-field textarea[name^="basics-location_"], #event-name-field input[name^="name_"]'
+         ).forEach(function (input) {
+             eventI18nValues[input.name] = input.value;
+         });
+@@ -269,15 +269,17 @@
+         var eventNameField = document.getElementById("event-name-field");
+         var eventLocationField = document.getElementById("event-location-field");
+         var activeLanguages = selectedActiveLanguages();
+-        if (!form || !eventNameField || !eventLocationField || activeLanguages.length === 0) {
++        if (!form || !eventNameField || activeLanguages.length === 0) {
+             return;
+         }
+ 
+         rememberEventI18nValues();
+         var formData = new FormData(form);
+         formData.delete("foundation-locales");
++        formData.delete("locales");
+         activeLanguages.forEach(function (locale) {
+             formData.append("foundation-locales", locale);
++            formData.append("locales", locale);
+         });
+         Object.keys(eventI18nValues).forEach(function (name) {
+             if (!formData.has(name)) {
+@@ -292,7 +294,9 @@
+         var requestController = new AbortController();
+         eventI18nRequest = requestController;
+         eventNameField.setAttribute("aria-busy", "true");
+-        eventLocationField.setAttribute("aria-busy", "true");
++        if (eventLocationField) {
++            eventLocationField.setAttribute("aria-busy", "true");
++        }
+ 
+         fetch(window.location.href, {
+             method: "POST",
+@@ -314,27 +318,33 @@
+                 var fields = new DOMParser().parseFromString(data.fields, "text/html");
+                 var eventNameTemplate = fields.querySelector("#event-name-field-template");
+                 var eventLocationTemplate = fields.querySelector("#event-location-field-template");
+-                if (!eventNameTemplate || !eventLocationTemplate) {
++                if (!eventNameTemplate) {
+                     throw new Error("Event multilingual fields response is incomplete.");
+                 }
+                 eventNameField.replaceChildren(eventNameTemplate.content.cloneNode(true));
+-                eventLocationField.replaceChildren(eventLocationTemplate.content.cloneNode(true));
++                if (eventLocationField && eventLocationTemplate) {
++                    eventLocationField.replaceChildren(eventLocationTemplate.content.cloneNode(true));
++                    eventLocationField.removeAttribute("aria-busy");
++                } else if (eventLocationField) {
++                    eventLocationField.removeAttribute("aria-busy");
++                }
+                 eventNameField.removeAttribute("aria-busy");
+-                eventLocationField.removeAttribute("aria-busy");
+                 eventI18nRequest = null;
+             })
+             .catch(function (error) {
+                 if (error.name !== "AbortError" && eventI18nRequest === requestController) {
+                     console.error("Failed to update the event multilingual fields.", error);
+                     eventNameField.removeAttribute("aria-busy");
+-                    eventLocationField.removeAttribute("aria-busy");
++                    if (eventLocationField) {
++                        eventLocationField.removeAttribute("aria-busy");
++                    }
+                     eventI18nRequest = null;
+                 }
+             });
+     }
+ 
+     function getSlugInput() {
+-        return document.getElementById("id_basics-slug") || document.querySelector('[name="basics-slug"]');
++        return document.getElementById("id_basics-slug") || document.querySelector('[name="basics-slug"]') || document.getElementById("id_slug") || document.querySelector('[name="slug"]');
+     }
+ 
+     function updateRandomSlug(randomSlugButton, force) {
+diff --git a/app/eventyay/static/eventyay-common/js/ui/team.js b/app/eventyay/static/eventyay-common/js/ui/team.js
+index 9a46c69c957..cf4111a8ec2 100644
+--- a/app/eventyay/static/eventyay-common/js/ui/team.js
++++ b/app/eventyay/static/eventyay-common/js/ui/team.js
+@@ -68,7 +68,7 @@ document.addEventListener('DOMContentLoaded', function () {
+ 
+         const children = container.querySelectorAll('input[type="checkbox"]');
+ 
+-        function syncFromParent() {
++        function syncFromParent(event) {
+             const enabled = parent.checked;
+             children.forEach(function (child) {
+                 child.disabled = !enabled;
+diff --git a/app/tests/eventyay_common/test_event_clone.py b/app/tests/eventyay_common/test_event_clone.py
+new file mode 100644
+index 00000000000..79781d4e2fa
+--- /dev/null
++++ b/app/tests/eventyay_common/test_event_clone.py
+@@ -0,0 +1,135 @@
++import datetime
++from decimal import Decimal
++from zoneinfo import ZoneInfo
++
++import pytest
++from django.test import override_settings
++from django.urls import reverse
++from django_scopes import scopes_disabled
++
++from eventyay.base.models import Team
++
++
++@pytest.fixture
++def clone_url(event):
++    return reverse('eventyay_common:event.clone', kwargs={
++        'organizer': event.organizer.slug,
++        'event': event.slug
++    })
++
++
++@pytest.mark.django_db
++@override_settings(SITE_URL='http://testserver')
++def test_clone_view_get(organizer_client, event, clone_url):
++    response = organizer_client.get(clone_url)
++    assert response.status_code == 200
++    assert 'form' in response.context
++
++
++@pytest.mark.django_db
++@override_settings(SITE_URL='http://testserver')
++def test_clone_view_post_success(organizer_client, event, clone_url, user):
++    with scopes_disabled():
++        tr = event.tax_rules.create(rate=19, name='VAT')
++        event.products.create(
++            name='Early-bird ticket',
++            category=None,
++            default_price=23,
++            tax_rule=tr,
++            admission=True,
++        )
++        event.settings.tax_rate_default = tr
++
++    berlin_tz = ZoneInfo('Europe/Berlin')
++    start_date = datetime.datetime(2028, 12, 26, 9, 0, 0, tzinfo=berlin_tz)
++    end_date = datetime.datetime(2028, 12, 30, 17, 0, 0, tzinfo=berlin_tz)
++
++    payload = {
++        'name_0': 'Cloned Event',
++        'slug': 'cloned-event',
++        'date_from_0': start_date.strftime('%Y-%m-%d'),
++        'date_from_1': start_date.strftime('%H:%M'),
++        'date_to_0': end_date.strftime('%Y-%m-%d'),
++        'date_to_1': end_date.strftime('%H:%M'),
++        'timezone': 'Europe/Berlin',
++        'locale': 'en',
++        'locales': ['en'],
++        'clone_common_data': 'on',
++        'clone_ticketing_data': 'on',
++        'clone_talk_data': 'on',
++        'clone_settings': 'on',
++        'clone_design_texts': 'on',
++        'clone_email_settings': 'on',
++        'clone_products': 'on',
++        'clone_questions': 'on',
++        'clone_checkin_lists': 'on',
++        'clone_payment_settings': 'on',
++        'clone_cfp': 'on',
++        'clone_session_types_tracks': 'on',
++        'clone_review_settings': 'on',
++    }
++
++    response = organizer_client.post(clone_url, payload, follow=True)
++    assert response.status_code == 200, response.content
++
++    from eventyay.base.models import Event
++    cloned_event = Event.objects.get(slug='cloned-event')
++
++    assert cloned_event.name == 'Cloned Event'
++    assert cloned_event.organizer == event.organizer
++    assert cloned_event.settings.timezone == 'Europe/Berlin'
++
++    assert Team.objects.filter(limit_events=cloned_event, members=user).exists()
++
++    with scopes_disabled():
++        assert cloned_event.tax_rules.filter(rate=Decimal('19.00')).count() == 1
++        assert cloned_event.products.count() == 1
++        assert cloned_event.products.first().name == 'Early-bird ticket'
++
++
++@pytest.mark.django_db
++@override_settings(SITE_URL='http://testserver')
++def test_clone_view_post_selective_clone(organizer_client, event, clone_url):
++    with scopes_disabled():
++        tr = event.tax_rules.create(rate=19, name='VAT')
++        event.products.create(
++            name='Early-bird ticket',
++            category=None,
++            default_price=23,
++            tax_rule=tr,
++            admission=True,
++        )
++
++    berlin_tz = ZoneInfo('Europe/Berlin')
++    start_date = datetime.datetime(2028, 12, 26, 9, 0, 0, tzinfo=berlin_tz)
++    end_date = datetime.datetime(2028, 12, 30, 17, 0, 0, tzinfo=berlin_tz)
++
++    payload = {
++        'name_0': 'Cloned Event 2',
++        'slug': 'cloned-event-2',
++        'date_from_0': start_date.strftime('%Y-%m-%d'),
++        'date_from_1': start_date.strftime('%H:%M'),
++        'date_to_0': end_date.strftime('%Y-%m-%d'),
++        'date_to_1': end_date.strftime('%H:%M'),
++        'timezone': 'Europe/Berlin',
++        'locale': 'en',
++        'locales': ['en'],
++        # Disable ticketing and talk data cloning
++        'clone_common_data': 'on',
++        'clone_settings': 'on',
++        'clone_design_texts': 'on',
++        'clone_email_settings': 'on',
++    }
++
++    response = organizer_client.post(clone_url, payload, follow=True)
++    assert response.status_code == 200, response.content
++
++    from eventyay.base.models import Event
++    cloned_event = Event.objects.get(slug='cloned-event-2')
++
++    assert cloned_event.name == 'Cloned Event 2'
++
++    with scopes_disabled():
++        # Products and tax rules should not be cloned since clone_ticketing_data is not set
++        assert cloned_event.tax_rules.count() == 0
++        assert cloned_event.products.count() == 0

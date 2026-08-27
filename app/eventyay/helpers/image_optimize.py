@@ -27,6 +27,7 @@ from typing import NamedTuple
 from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import UploadedFile
 from PIL import Image, ImageOps
+from PIL.Image import DecompressionBombError
 from eventyay.common.image import encode_optimized
 
 logger = logging.getLogger(__name__)
@@ -101,6 +102,9 @@ def optimize_uploaded_image(
     image = Image.open(BytesIO(raw))
     try:
         image.load()
+    except DecompressionBombError as e:
+        logger.exception('Image too large to load (DecompressionBombError)')
+        raise ValueError('Image exceeds maximum safe dimensions') from e
     except OSError:
         logger.exception('Could not load uploaded image for optimization')
         raise
@@ -129,8 +133,10 @@ def optimize_uploaded_image(
     # encode_optimized returns extensions with a dot (e.g., '.jpg')
     optimized_ext = optimized_ext.lstrip('.')
     
+    original_ext_norm = 'jpg' if original_ext in ('jpg', 'jpeg') else original_ext
+    
     # Prevent PNG/WebP size growth: if we didn't crop or resize, and format didn't change
-    if not crop_box and orig_w <= max_w and len(optimized_bytes) >= len(raw) and optimized_ext == original_ext:
+    if not crop_box and orig_w <= max_w and len(optimized_bytes) >= len(raw) and optimized_ext == original_ext_norm:
         optimized_bytes = raw
         
     optimized_file = ContentFile(optimized_bytes)

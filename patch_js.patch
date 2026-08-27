@@ -1,0 +1,22 @@
+--- app/eventyay/webapp/video/src/lib/interpretation-language-streams.js
++++ app/eventyay/webapp/video/src/lib/interpretation-language-streams.js
+@@ -23,6 +23,17 @@
+ 	return data
+ }
+ 
++export async function syncInterpretationServices(store, roomId) {
++	const response = await fetch(interpretationApiUrl(store, roomId, 'sync/'), {
++		method: 'POST',
++		headers: interpretationAuthHeaders(),
++		credentials: 'include',
++	})
++	const data = await response.json().catch(() => ({}))
++	if (!response.ok) {
++		throw new Error(apiErrorDetail(data) || 'Could not sync interpretation services')
++	}
++	return data
++}
++
+ export function cloneLanguageStreamEntries(entries) {
+ 	return JSON.parse(JSON.stringify(entries || []))
+ }

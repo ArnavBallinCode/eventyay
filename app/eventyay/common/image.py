@@ -365,24 +365,25 @@ def process_image(*, image, generate_thumbnail=False):
                             pass
             else:
                 # Fallback for remote storage backends (e.g., S3)
-                temp_key = image.name + '.tmp' + extension
+                original_name = image.name
+                temp_key = f'{original_name}.tmp{extension}'
                 
                 # 1. Upload to temp key first
                 saved_temp_key = image.storage.save(temp_key, ContentFile(buf.getvalue()))
                 
                 try:
-                    # 2. Upload succeeded, replace file contents safely
-                    with image.storage.open(saved_temp_key, 'rb') as temp_f:
-                        # storage.save with the same name can potentially create a new file
-                        # if the backend behaves safely, we might get a new name.
-                        # Since we cannot update MockImageFieldFile safely here, we just replace it.
-                        image.storage.delete(image.name)
-                        image.storage.save(image.name, temp_f)
+                    # 2. Upload succeeded, replace file contents
+                    image.storage.delete(original_name)
+                    final_name = image.storage.save(original_name, ContentFile(buf.getvalue()))
+                    if final_name != original_name:
+                        image.name = final_name
+                        if getattr(image, 'instance', None) is not None and getattr(image, 'field', None) is not None:
+                            image.instance.save(update_fields=[image.field.name])
                 finally:
                     # 3. Clean up temp key
                     image.storage.delete(saved_temp_key)
             
-    except (OSError, ValueError, DecompressionBombError, AttributeError, NotImplementedError) as e:
+    except (OSError, ValueError, DecompressionBombError, AttributeError, NotImplementedError):
         logger.exception('Failed to save processed image %s', getattr(image, 'name', image))
         return False
 

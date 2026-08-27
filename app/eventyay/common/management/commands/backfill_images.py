@@ -12,6 +12,7 @@ Usage::
 
 import logging
 import os
+import shutil
 
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
@@ -20,7 +21,7 @@ from django.utils import timezone
 from django_scopes import scopes_disabled
 
 from eventyay.base.models import Submission, User, Product, Room, Event_SettingsStore, Organizer_SettingsStore
-from eventyay.common.image import invalidate_speaker_avatar_caches, is_svg_filename, recompress_image_field
+from eventyay.common.image import invalidate_speaker_avatar_caches, is_svg_filename, process_image
 
 logger = logging.getLogger(__name__)
 
@@ -91,12 +92,12 @@ class Command(BaseCommand):
             return
         os.makedirs(backup_dir, exist_ok=True)
         basename = os.path.basename(image.name)
-        backup_filename = f'{prefix}_{timezone.now():%Y%m%d%H%M%S}_{basename}'
+        backup_filename = f'{prefix}_{timezone.now():%Y%m%d%H%M%S%f}_{basename}'
         backup_path = os.path.join(backup_dir, backup_filename)
         
         with image.open('rb') as f:
             with open(backup_path, 'wb') as out_f:
-                out_f.write(f.read())
+                shutil.copyfileobj(f, out_f)
         
         self.stdout.write(f'Backed up to {backup_path}')
 
@@ -146,7 +147,7 @@ class Command(BaseCommand):
             self._backup_file(image, backup_dir, prefix=f'{model_name}_{pk}')
 
             # Compress
-            if recompress_image_field(image, generate_thumbnail=generate_thumbnail):
+            if process_image(image=image, generate_thumbnail=generate_thumbnail):
                 stats['compressed'] += 1
                 try:
                     new_size = image.size

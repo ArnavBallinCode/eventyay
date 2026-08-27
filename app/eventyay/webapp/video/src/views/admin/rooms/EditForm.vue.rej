@@ -1,0 +1,17 @@
+@@ -220,6 +224,16 @@
+ 			} catch (error) {
+ 				console.error(error)
+ 				this.saving = false
+ 				this.error = error.message || error
+ 			}
+ 		},
++		async syncServices() {
++			this.syncError = null
++			this.syncing = true
++			try {
++				await syncInterpretationServices(this.$store, this.config.id)
++			} catch (error) {
++				this.syncError = error.message || error
++			}
++			this.syncing = false
++		},
