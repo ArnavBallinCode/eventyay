@@ -168,60 +168,59 @@
         {% endblock email_editor_preview %}
 
         {% block email_editor_actions %}
-            <section class="card mb-3">
-                <div class="card-body d-md-flex justify-content-between align-items-center">
-                    <span class="text-muted mb-2 mb-md-0">{% block email_editor_actions_summary %}{% endblock email_editor_actions_summary %}</span>
-                    <div class="d-md-flex align-items-center">
-                        {% if form.skip_queue %}
-                            <div class="form-check d-flex align-items-center mb-2 mb-md-0 mr-md-4">
-                                {{ form.skip_queue }}
-                                <label class="form-check-label ml-2" for="{{ form.skip_queue.id_for_label }}">
-                                    {{ form.skip_queue.label }}
-                                </label>
-                            </div>
-                        {% endif %}
-                        <span class="composer-actions">
-                            {% block draft_button %}
-                            <button type="submit" class="btn btn-outline-info mr-2" name="action" value="draft">
-                                {% translate "Save draft" %}
-                            </button>
-                        {% endblock draft_button %}
-                        <button type="submit" class="btn btn-outline-info btn-save mr-2" name="action" value="preview">
-                            {% translate "Preview email" %}
+            <div class="submit-group panel">
+                <span>{% block email_editor_actions_summary %}{% endblock email_editor_actions_summary %}</span>
+                <span class="d-flex align-items-center">
+                    {% if form.skip_queue %}
+                        <div class="form-check d-flex align-items-center mb-0 mr-4">
+                            {{ form.skip_queue }}
+                            <label class="form-check-label mb-0" for="{{ form.skip_queue.id_for_label }}">
+                                {{ form.skip_queue.label }}
+                            </label>
+                        </div>
+                    {% endif %}
+                    <span class="composer-actions">
+                        {% block draft_button %}
+                        <button type="submit" class="btn btn-outline-info mr-2" name="action" value="draft">
+                            {% translate "Save draft" %}
                         </button>
-                        <span class="composer-send-group">
-                            <button type="submit" class="btn btn-primary" name="action" value="send" data-confirm-send>
-                                <i class="fa fa-paper-plane" aria-hidden="true"></i>
-                                <span id="main-send-button-label"
-                                      data-label-outbox="{% translate 'Send to Outbox' %}"
-                                      data-label-immediate="{% translate 'Send email' %}">
-                                {% block send_button_label %}
-                                    {% translate "Send to Outbox" %}
-                                {% endblock send_button_label %}
-                                </span>
-                            </button>
-                            {% if form.scheduled_at %}
-                            <details class="dropdown" aria-haspopup="menu" role="menu">
-                                <summary class="btn btn-primary" role="button" aria-label="{% translate 'More send options' %}">
-                                    <i class="fa fa-chevron-down" aria-hidden="true"></i>
-                                </summary>
-                                <div class="dropdown-content dropdown-content-sw">
-                                    <button type="button" class="dropdown-item" role="menuitem" tabindex="-1" data-send-option="now">
-                                        {% translate "Send now" %}
-                                    </button>
-                                    <button type="button" class="dropdown-item" role="menuitem" tabindex="-1" data-send-option="schedule">
-                                        {% translate "Schedule email" %}
-                                    </button>
-                                    <button type="button" class="dropdown-item" role="menuitem" tabindex="-1" data-send-option="test">
-                                        {% translate "Send test first" %}
-                                    </button>
-                                </div>
-                            </details>
-                            {% endif %}
-                        </span>
-                    </div>
-                </div>
-            </section>
+                    {% endblock draft_button %}
+                    <button type="submit" class="btn btn-outline-info btn-save mr-2" name="action" value="preview">
+                        {% translate "Preview email" %}
+                    </button>
+                    <span class="composer-send-group">
+                        <button type="submit" class="btn btn-primary" name="action" value="send" data-confirm-send>
+                            <i class="fa fa-paper-plane" aria-hidden="true"></i>
+                            <span id="main-send-button-label"
+                                  data-label-outbox="{% translate 'Send to Outbox' %}"
+                                  data-label-immediate="{% translate 'Send email' %}">
+                            {% block send_button_label %}
+                                {% translate "Send to Outbox" %}
+                            {% endblock send_button_label %}
+                            </span>
+                        </button>
+                        {% if form.scheduled_at %}
+                        <details class="dropdown" aria-haspopup="menu" role="menu">
+                            <summary class="btn btn-primary" role="button" aria-label="{% translate 'More send options' %}">
+                                <i class="fa fa-chevron-down" aria-hidden="true"></i>
+                            </summary>
+                            <div class="dropdown-content dropdown-content-sw">
+                                <button type="button" class="dropdown-item" role="menuitem" tabindex="-1" data-send-option="now">
+                                    {% translate "Send now" %}
+                                </button>
+                                <button type="button" class="dropdown-item" role="menuitem" tabindex="-1" data-send-option="schedule">
+                                    {% translate "Schedule email" %}
+                                </button>
+                                <button type="button" class="dropdown-item" role="menuitem" tabindex="-1" data-send-option="test">
+                                    {% translate "Send test first" %}
+                                </button>
+                            </div>
+                        </details>
+                        {% endif %}
+                    </span>
+                    </span>
+                </span>
+            </div>
         {% endblock email_editor_actions %}
         <dialog class="info-dialog" id="send-confirm-dialog" aria-label="{% translate 'Send to outbox?' %}" style="position: fixed;">
             <div class="dialog-content">
