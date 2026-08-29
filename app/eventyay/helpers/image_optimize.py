@@ -84,8 +84,11 @@ def optimize_uploaded_image(
 
     max_w = MAX_WIDTH[setting_key]
 
+    if hasattr(uploaded, 'seek'):
+        uploaded.seek(0)
     raw = uploaded.read()
-    uploaded.seek(0)
+    if hasattr(uploaded, 'seek'):
+        uploaded.seek(0)
 
     _, original_ext = os.path.splitext(uploaded.name or 'upload')
     original_ext = (original_ext.lstrip('.') or 'jpg').lower()
