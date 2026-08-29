@@ -102,8 +102,8 @@ def optimize_uploaded_image(
             original_ext='svg',
         )
 
-    image = Image.open(BytesIO(raw))
     try:
+        image = Image.open(BytesIO(raw))
         image.load()
     except DecompressionBombError as e:
         logger.exception('Image too large to load (DecompressionBombError)')

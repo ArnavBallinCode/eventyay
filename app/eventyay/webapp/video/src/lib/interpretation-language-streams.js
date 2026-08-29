@@ -85,7 +85,7 @@ export function defaultLanguageStreamEntry() {
 export async function syncInterpretationServices(store, roomId) {
 	const response = await fetch(interpretationApiUrl(store, roomId, 'sync/'), {
 		method: 'POST',
-		headers: interpretationAuthHeaders(),
+		headers: await interpretationAuthHeaders(),
 		credentials: 'include',
 	})
 	const data = await response.json().catch(() => ({}))
