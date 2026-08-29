@@ -15,7 +15,7 @@
 				span.ticket-info-head-ticket {{ $t('Ticket code') }}
 			.wikimedia {{ $t('Wikimedia') }}
 			.state {{ $t('State') }}
-		RecycleScroller.tbody.bunt-scrollbar(v-if="filteredUsers", :items="filteredUsers", :item-size="56", v-slot="{item: user}", v-scrollbar.y="")
+		RecycleScroller.tbody.bunt-scrollbar(v-if="users", :items="users", :item-size="56", v-slot="{item: user}", v-scrollbar.y="")
 			.user.table-row(
 				:class="{error: user.error, updating: user.updating}",
 				tabindex="0",
@@ -71,15 +71,16 @@
 						tooltipPlacement="left",
 						@click="doAction(user, 'reactivate', null)")
 						| {{ user.moderation_state === 'banned' ? 'unban' : 'unsilence'}}
+			template(#after)
+				.load-more(v-if="!isLastPage")
+					bunt-button(@click="loadUsers(page + 1)", :loading="loadingMore") {{ $t('Load more') }}
 		bunt-progress-circular(v-else, size="huge", :page="true")
 </template>
 <script>
-// TODO
-// - search
 import { mapState, mapGetters } from 'vuex'
 import api from 'lib/api'
-import fuzzysearch from 'lib/fuzzysearch'
 import Avatar from 'components/Avatar'
+import debounce from 'lodash/debounce'
 
 export default {
 	name: 'AdminUsers',
@@ -87,39 +88,62 @@ export default {
 	data() {
 		return {
 			users: null,
-			search: ''
+			search: '',
+			page: 1,
+			isLastPage: false,
+			loadingMore: false,
+			debouncedSearch: null
 		}
 	},
 	computed: {
 		...mapState({
 			ownUser: 'user'
 		}),
-		...mapGetters(['hasPermission', 'eventRouting']),
-		filteredUsers() {
-			if (!this.users) return
-			const q = this.search.trim()
-			if (!q) return this.users
-			const ql = q.toLowerCase()
-			return this.users.filter(
-				user =>
-					user.id.startsWith(q) ||
-					(user.token_id && user.token_id.startsWith(q)) ||
-					fuzzysearch(ql, user.profile?.display_name?.toLowerCase()) ||
-					(user.email && fuzzysearch(ql, user.email.toLowerCase())) ||
-					(user.ticket_code && fuzzysearch(ql, user.ticket_code.toLowerCase()))
-			)
+		...mapGetters(['hasPermission', 'eventRouting'])
+	},
+	watch: {
+		search() {
+			this.debouncedSearch()
 		}
 	},
 	async created() {
-		this.users = (await api.call('user.list')).results.map(user => {
-			return {
-				...user,
-				updating: null,
-				error: null
-			}
-		})
+		this.debouncedSearch = debounce(this.doSearch, 300)
+		await this.loadUsers(1)
 	},
 	methods: {
+		async doSearch() {
+			await this.loadUsers(1)
+		},
+		async loadUsers(page) {
+			if (page === 1) {
+				this.users = null
+			} else {
+				this.loadingMore = true
+			}
+			try {
+				const response = await api.call('user.list.search', {
+					search_term: this.search.trim(),
+					page: page,
+					include_banned: true
+				})
+				const results = response.results.map(user => ({
+					...user,
+					updating: null,
+					error: null
+				}))
+				if (page === 1) {
+					this.users = results
+				} else if (this.users) {
+					this.users.push(...results)
+				}
+				this.isLastPage = response.isLastPage
+				this.page = page
+			} catch (e) {
+				console.error(e)
+			} finally {
+				this.loadingMore = false
+			}
+		},
 		goToUser(user) {
 			this.$router.push({ name: 'admin:user', params: { userId: user.id } })
 		},
