@@ -17,7 +17,7 @@ from i18nfield.strings import LazyI18nString
 from eventyay.base.reldate import RelativeDateField, RelativeDateTimeField
 from eventyay.common.urls import is_http_url
 from eventyay.helpers.image_optimize import optimize_uploaded_image
-from django.core.files.uploadedfile import UploadedFile
+from django.core.files.uploadedfile import UploadedFile, SimpleUploadedFile
 import os
 
 from .validators import PlaceholderValidator  # NOQA
@@ -158,8 +158,12 @@ class SettingsForm(i18nfield.forms.I18nFormMixin, HierarkeyForm):
                 try:
                     opt = optimize_uploaded_image(v, k)
                     orig_name = os.path.splitext(v.name or 'upload')[0]
-                    opt.optimized.name = f'{orig_name}.{opt.optimized_ext}'
-                    cleaned_data[k] = opt.optimized
+                    new_name = f'{orig_name}.{opt.optimized_ext}'
+                    cleaned_data[k] = SimpleUploadedFile(
+                        name=new_name,
+                        content=opt.optimized.read(),
+                        content_type=getattr(v, 'content_type', None)
+                    )
                 except (ValueError, OSError) as e:
                     self.add_error(k, str(e))
                     if hasattr(v, 'seek'):
