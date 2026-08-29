@@ -15,62 +15,63 @@
 				span.ticket-info-head-ticket {{ $t('Ticket code') }}
 			.wikimedia {{ $t('Wikimedia') }}
 			.state {{ $t('State') }}
-		RecycleScroller.tbody.bunt-scrollbar(v-if="users", :items="users", :item-size="56", v-slot="{item: user}", v-scrollbar.y="")
-			.user.table-row(
-				:class="{error: user.error, updating: user.updating}",
-				tabindex="0",
-				role="link",
-				:aria-label="userRowAriaLabel(user)",
-				@click="goToUser(user)",
-				@keydown.enter.self.prevent="goToUser(user)"
-			)
-				avatar.avatar(:user="user", :size="24")
-				.id(:title="user.id") {{ user.id }}
-				.tokenid(:title="user.token_id || ''") {{ user.token_id || '–' }}
-				.name
-					| {{ user.profile.display_name }}
-					.ui-badge(v-for="badge in user.badges") {{ badge }}
-				.email(:title="user.email || ''") {{ user.email || '–' }}
-				.ticket-info(@click.stop="")
-					template(v-if="user.order_code && eventRouting.organizer && eventRouting.event")
-						a.order-link(
-							:href="`/control/event/${encodeURIComponent(eventRouting.organizer)}/${encodeURIComponent(eventRouting.event)}/orders/${encodeURIComponent(user.order_code)}/`",
-							target="_blank",
-							rel="noopener noreferrer",
-							:title="user.order_code",
-							@click.stop
-						) {{ user.order_code }}
-						span.ticket-code(v-if="user.ticket_code", :title="user.ticket_code") {{ user.ticket_code }}
-					span.ticket-code-only(v-else-if="user.ticket_code", :title="user.ticket_code") {{ user.ticket_code }}
-					span.ticket-empty(v-else) –
-				.wikimedia(:title="user.wikimedia_username || ''") {{ user.wikimedia_username || '–' }}
-				.state {{ user.moderation_state || '–' }}
-				.row-actions(v-if="user.id !== ownUser.id", @click.stop="")
-					bunt-button.btn-open-dm(v-if="hasPermission('world:chat.direct')", @click="$store.dispatch('chat/openDirectMessage', {users: [user]})") message
-					bunt-button.btn-ban(
-						v-if="hasPermission('world:users.manage') && user.moderation_state !== 'banned'",
-						:key="`${user.id}-ban`",
-						:loading="user.updating === 'ban'",
-						:error-message="(user.error && user.error.action === 'ban') ? user.error.message : null",
-						tooltipPlacement="left",
-						@click="doAction(user, 'ban', 'banned')")
-						| ban
-					bunt-button.btn-silence(
-						v-if="hasPermission('world:users.manage') && !user.moderation_state",
-						:key="`${user.id}-silence`",
-						:loading="user.updating === 'silence'",
-						:error-message="(user.error && user.error.action === 'silence') ? user.error.message : null",
-						tooltipPlacement="left",
-						@click="doAction(user, 'silence', 'silenced')")
-						| silence
-					bunt-button.btn-reactivate(
-						v-if="hasPermission('world:users.manage') && user.moderation_state",
-						:key="`${user.id}-reactivate`",
-						:loading="user.updating === 'reactivate'",
-						:error-message="(user.error && user.error.action === 'reactivate') ? user.error.message : null",
-						tooltipPlacement="left",
-						@click="doAction(user, 'reactivate', null)")
-						| {{ user.moderation_state === 'banned' ? 'unban' : 'unsilence'}}
+		RecycleScroller.tbody.bunt-scrollbar(v-if="users", :items="users", :item-size="56", v-scrollbar.y="")
+			template(#default="{item: user}")
+				.user.table-row(
+					:class="{error: user.error, updating: user.updating}",
+					tabindex="0",
+					role="link",
+					:aria-label="userRowAriaLabel(user)",
+					@click="goToUser(user)",
+					@keydown.enter.self.prevent="goToUser(user)"
+				)
+					avatar.avatar(:user="user", :size="24")
+					.id(:title="user.id") {{ user.id }}
+					.tokenid(:title="user.token_id || ''") {{ user.token_id || '–' }}
+					.name
+						| {{ user.profile.display_name }}
+						.ui-badge(v-for="badge in user.badges") {{ badge }}
+					.email(:title="user.email || ''") {{ user.email || '–' }}
+					.ticket-info(@click.stop="")
+						template(v-if="user.order_code && eventRouting.organizer && eventRouting.event")
+							a.order-link(
+								:href="`/control/event/${encodeURIComponent(eventRouting.organizer)}/${encodeURIComponent(eventRouting.event)}/orders/${encodeURIComponent(user.order_code)}/`",
+								target="_blank",
+								rel="noopener noreferrer",
+								:title="user.order_code",
+								@click.stop
+							) {{ user.order_code }}
+							span.ticket-code(v-if="user.ticket_code", :title="user.ticket_code") {{ user.ticket_code }}
+						span.ticket-code-only(v-else-if="user.ticket_code", :title="user.ticket_code") {{ user.ticket_code }}
+						span.ticket-empty(v-else) –
+					.wikimedia(:title="user.wikimedia_username || ''") {{ user.wikimedia_username || '–' }}
+					.state {{ user.moderation_state || '–' }}
+					.row-actions(v-if="user.id !== ownUser.id", @click.stop="")
+						bunt-button.btn-open-dm(v-if="hasPermission('world:chat.direct')", @click="$store.dispatch('chat/openDirectMessage', {users: [user]})") message
+						bunt-button.btn-ban(
+							v-if="hasPermission('world:users.manage') && user.moderation_state !== 'banned'",
+							:key="`${user.id}-ban`",
+							:loading="user.updating === 'ban'",
+							:error-message="(user.error && user.error.action === 'ban') ? user.error.message : null",
+							tooltipPlacement="left",
+							@click="doAction(user, 'ban', 'banned')")
+							| ban
+						bunt-button.btn-silence(
+							v-if="hasPermission('world:users.manage') && !user.moderation_state",
+							:key="`${user.id}-silence`",
+							:loading="user.updating === 'silence'",
+							:error-message="(user.error && user.error.action === 'silence') ? user.error.message : null",
+							tooltipPlacement="left",
+							@click="doAction(user, 'silence', 'silenced')")
+							| silence
+						bunt-button.btn-reactivate(
+							v-if="hasPermission('world:users.manage') && user.moderation_state",
+							:key="`${user.id}-reactivate`",
+							:loading="user.updating === 'reactivate'",
+							:error-message="(user.error && user.error.action === 'reactivate') ? user.error.message : null",
+							tooltipPlacement="left",
+							@click="doAction(user, 'reactivate', null)")
+							| {{ user.moderation_state === 'banned' ? 'unban' : 'unsilence'}}
 			template(#after)
 				.load-more(v-if="!isLastPage")
 					bunt-button(@click="loadUsers(page + 1)", :loading="loadingMore") {{ $t('Load more') }}
