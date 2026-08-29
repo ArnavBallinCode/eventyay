@@ -53,7 +53,7 @@
 	.ui-form-actions
 		bunt-button.btn-save(@click="save", :loading="saving", :error="!!error") {{ creating ? $t('Create') : $t('Save') }}
 		bunt-button.btn-sync(v-if="!creating && interpretationAdmin.usePluginStreams", @click="syncServices", :loading="syncing", :error="!!syncError", style="margin-left: 10px") {{ $t('Sync Services') }}
-		.errors {{ error || validationErrors.join(', ') }}
+		.errors {{ error || syncError || validationErrors.join(', ') }}
 </template>
 <script>
 import { markRaw } from 'vue'

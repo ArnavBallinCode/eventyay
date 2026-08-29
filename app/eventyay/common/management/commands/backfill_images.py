@@ -44,9 +44,21 @@ SETTINGS_KEYS = [
 ]
 
 class MockImageFieldFile:
-    def __init__(self, name):
-        self.name = name
+    def __init__(self, name, store=None):
+        self._name = name
         self.storage = default_storage
+        self.store = store
+
+    @property
+    def name(self):
+        return self._name
+
+    @name.setter
+    def name(self, value):
+        self._name = value
+        if self.store:
+            self.store.value = f'file://{value}'
+            self.store.save(update_fields=['value'])
 
     def open(self, mode='rb'):
         return self.storage.open(self.name, mode)
@@ -191,7 +203,7 @@ class Command(BaseCommand):
                         if not default_storage.exists(file_path):
                             continue
                             
-                        image = MockImageFieldFile(file_path)
+                        image = MockImageFieldFile(file_path, store=store)
                         process_image_field(image, name, store.object_id, generate_thumbnail=False)
 
         self.stdout.write(

@@ -160,7 +160,8 @@ class SettingsForm(i18nfield.forms.I18nFormMixin, HierarkeyForm):
                     orig_name = os.path.splitext(v.name or 'upload')[0]
                     opt.optimized.name = f'{orig_name}.{opt.optimized_ext}'
                     cleaned_data[k] = opt.optimized
-                except (ValueError, OSError):
+                except (ValueError, OSError) as e:
+                    self.add_error(k, str(e))
                     if hasattr(v, 'seek'):
                         v.seek(0)
         return cleaned_data
