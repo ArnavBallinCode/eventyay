@@ -213,9 +213,16 @@ class UserListView(AdministratorPermissionRequiredMixin, ListView):
                 messages.error(request, _('This user has no primary email address.'))
                 return redirect(reverse('eventyay_admin:admin.users'))
 
-            new_verified_status = not primary_email.verified
-            EmailAddress.objects.filter(pk=primary_email.pk).update(verified=new_verified_status)
-            primary_email.verified = new_verified_status
+            from django.db.models import Case, When, Value, BooleanField
+            EmailAddress.objects.filter(pk=primary_email.pk).update(
+                verified=Case(
+                    When(verified=True, then=Value(False)),
+                    default=Value(True),
+                    output_field=BooleanField()
+                )
+            )
+            primary_email.refresh_from_db()
+            new_verified_status = primary_email.verified
         target_user.log_action(
             'eventyay.user.settings.changed',
             user=request.user,

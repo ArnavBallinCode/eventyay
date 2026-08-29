@@ -1171,6 +1171,28 @@ def list_users(
             conditions.append(
                 Q(**{"profile__fields__" + field + "__icontains": search_term})
             )
+
+        if include_admin_info:
+            conditions.append(Q(token_id__icontains=search_term))
+            conditions.append(Q(email__icontains=search_term))
+            conditions.append(Q(wikimedia_username__icontains=search_term))
+
+            try:
+                import uuid
+                conditions.append(Q(id=uuid.UUID(search_term)))
+            except ValueError:
+                pass
+
+            with scopes_disabled():
+                matching_tokens = set(
+                    OrderPosition.objects.filter(
+                        Q(secret__icontains=search_term) | Q(order__code__icontains=search_term),
+                        order__event_id=event_id,
+                    ).values_list("pseudonymization_id", flat=True)
+                )
+            if matching_tokens:
+                conditions.append(Q(token_id__in=[t for t in matching_tokens if t]))
+
         qs = qs.filter(reduce(operator.or_, conditions))
 
     try:

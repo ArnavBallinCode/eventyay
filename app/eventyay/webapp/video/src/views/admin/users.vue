@@ -93,7 +93,8 @@ export default {
 			page: 1,
 			isLastPage: false,
 			loadingMore: false,
-			debouncedSearch: null
+			debouncedSearch: null,
+			currentSearchRequestId: 0
 		}
 	},
 	computed: {
@@ -111,6 +112,11 @@ export default {
 		this.debouncedSearch = debounce(this.doSearch, 300)
 		await this.loadUsers(1)
 	},
+	beforeUnmount() {
+		if (this.debouncedSearch) {
+			this.debouncedSearch.cancel()
+		}
+	},
 	methods: {
 		async doSearch() {
 			await this.loadUsers(1)
@@ -121,12 +127,14 @@ export default {
 			} else {
 				this.loadingMore = true
 			}
+			const requestId = ++this.currentSearchRequestId
 			try {
 				const response = await api.call('user.list.search', {
 					search_term: this.search.trim(),
 					page: page,
 					include_banned: true
 				})
+				if (this.currentSearchRequestId !== requestId) return
 				const results = response.results.map(user => ({
 					...user,
 					updating: null,
@@ -140,9 +148,16 @@ export default {
 				this.isLastPage = response.isLastPage
 				this.page = page
 			} catch (e) {
-				console.error(e)
+				if (this.currentSearchRequestId === requestId) {
+					console.error(e)
+					if (page === 1 && !this.users) {
+						this.users = []
+					}
+				}
 			} finally {
-				this.loadingMore = false
+				if (this.currentSearchRequestId === requestId) {
+					this.loadingMore = false
+				}
 			}
 		},
 		goToUser(user) {
