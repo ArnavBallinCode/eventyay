@@ -456,11 +456,6 @@ def get_admin_navigation(request):
                     'active': 'pages' in url.url_name,
                 },
                 {
-                    'label': _('Start page'),
-                    'url': reverse('eventyay_admin:admin.startpage'),
-                    'active': (url.url_name == 'admin.startpage'),
-                },
-                {
                     'label': _('Update check'),
                     'url': reverse('eventyay_admin:admin.global.update'),
                     'active': (url.url_name == 'admin.global.update'),

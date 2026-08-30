@@ -19,22 +19,150 @@ from eventyay.base.settings import GlobalSettingsObject
 from eventyay.base.templatetags.rich_text import compile_markdown
 from eventyay.common.permissions import is_admin_mode_active
 from eventyay.control.forms.page import PageSettingsForm
+from eventyay.control.forms.pages_admin import (
+    DEFAULT_PAGE_SLUGS,
+    PAGE_TITLES,
+    DefaultPageContentForm,
+    FooterContentForm,
+    GlobalBannerContentForm,
+    StartPageContentForm,
+)
 from eventyay.control.permissions import AdministratorPermissionRequiredMixin
 from eventyay.eventyay_common.navigation import get_global_navigation
 from eventyay.helpers.compat import CompatDeleteView
 
 
-class PageList(AdministratorPermissionRequiredMixin, ListView):
+def build_pages_tabs(active):
+    """Return the tab definitions for the consolidated admin *Pages* area.
+
+    ``active`` is either a static tab key ("startpage", "footer", "banner",
+    "additional") or a default-page slug (e.g. "terms").
+    """
+    tabs = [
+        {'key': 'startpage', 'label': _('Start page'), 'url': reverse('eventyay_admin:admin.pages')},
+        {'key': 'footer', 'label': _('Footer'), 'url': reverse('eventyay_admin:admin.pages.footer')},
+    ]
+    for slug in DEFAULT_PAGE_SLUGS:
+        tabs.append(
+            {
+                'key': slug,
+                'label': PAGE_TITLES[slug],
+                'url': reverse('eventyay_admin:admin.pages.default', kwargs={'slug': slug}),
+            }
+        )
+    tabs.append({'key': 'banner', 'label': _('Global banner'), 'url': reverse('eventyay_admin:admin.pages.banner')})
+    tabs.append(
+        {'key': 'additional', 'label': _('Additional pages'), 'url': reverse('eventyay_admin:admin.pages.additional')}
+    )
+    for tab in tabs:
+        tab['active'] = tab['key'] == active
+    return tabs
+
+
+class PagesTabMixin:
+    """Shared context (tab bar) for every view rendered inside the Pages area."""
+
+    tab_key = None
+
+    def get_active_tab(self):
+        return self.tab_key
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['page_tabs'] = build_pages_tabs(self.get_active_tab())
+        return ctx
+
+
+class PagesSettingsView(PagesTabMixin, AdministratorPermissionRequiredMixin, FormView):
+    """Base FormView for the settings-backed Pages tabs."""
+
+    def form_valid(self, form):
+        form.save()
+        messages.success(self.request, _('Your changes have been saved.'))
+        return super().form_valid(form)
+
+    def form_invalid(self, form):
+        messages.error(self.request, _('Your changes have not been saved, see below for errors.'))
+        return super().form_invalid(form)
+
+
+class PagesStartPageView(PagesSettingsView):
+    template_name = 'pretixcontrol/admin/pages/startpage.html'
+    form_class = StartPageContentForm
+    tab_key = 'startpage'
+
+    def get_success_url(self):
+        return reverse('eventyay_admin:admin.pages')
+
+
+class PagesFooterView(PagesSettingsView):
+    template_name = 'pretixcontrol/admin/pages/footer.html'
+    form_class = FooterContentForm
+    tab_key = 'footer'
+
+    def get_success_url(self):
+        return reverse('eventyay_admin:admin.pages.footer')
+
+
+class PagesGlobalBannerView(PagesSettingsView):
+    template_name = 'pretixcontrol/admin/pages/banner.html'
+    form_class = GlobalBannerContentForm
+    tab_key = 'banner'
+
+    def get_success_url(self):
+        return reverse('eventyay_admin:admin.pages.banner')
+
+
+class PagesDefaultPageView(PagesSettingsView):
+    template_name = 'pretixcontrol/admin/pages/default_page.html'
+    form_class = DefaultPageContentForm
+
+    def dispatch(self, request, *args, **kwargs):
+        self.slug = kwargs.get('slug')
+        if self.slug not in DEFAULT_PAGE_SLUGS:
+            raise Http404(_('The requested page does not exist.'))
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_active_tab(self):
+        return self.slug
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['slug'] = self.slug
+        return kwargs
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['slug'] = self.slug
+        ctx['page_title'] = PAGE_TITLES.get(self.slug, self.slug)
+        ctx['has_content'] = self.slug in ('terms', 'privacy', 'pricing', 'support')
+        ctx['enabled_field'] = f'footer_link_{self.slug}_enabled'
+        ctx['url_field'] = f'footer_link_{self.slug}_url'
+        ctx['content_field'] = f'footer_page_{self.slug}_text'
+        if self.slug == 'documentation':
+            gs = GlobalSettingsObject().settings
+            ctx['preview_url'] = gs.get('footer_link_documentation_url') or 'https://docs.eventyay.com'
+        else:
+            ctx['preview_url'] = f'/{self.slug}/'
+        return ctx
+
+    def get_success_url(self):
+        return reverse('eventyay_admin:admin.pages.default', kwargs={'slug': self.slug})
+
+
+class PageList(PagesTabMixin, AdministratorPermissionRequiredMixin, ListView):
     model = Page
     context_object_name = 'pages'
     paginate_by = 20
     template_name = 'pretixcontrol/admin/pages/index.html'
+    tab_key = 'additional'
 
 
-class PageCreate(AdministratorPermissionRequiredMixin, FormView):
+class PageCreate(PagesTabMixin, AdministratorPermissionRequiredMixin, FormView):
     model = Page
     template_name = 'pretixcontrol/admin/pages/form.html'
     form_class = PageSettingsForm
+    tab_key = 'additional'
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -43,7 +171,7 @@ class PageCreate(AdministratorPermissionRequiredMixin, FormView):
 
     def get_success_url(self) -> str:
         return reverse(
-            'eventyay_admin:admin.pages',
+            'eventyay_admin:admin.pages.additional',
         )
 
     def form_valid(self, form):
@@ -65,7 +193,7 @@ class PageDetailMixin:
 
     def get_success_url(self) -> str:
         return reverse(
-            'eventyay_admin:admin.pages',
+            'eventyay_admin:admin.pages.additional',
         )
 
 
@@ -76,11 +204,12 @@ class PageEditForm(PageSettingsForm):
         return self.instance.slug
 
 
-class PageUpdate(AdministratorPermissionRequiredMixin, PageDetailMixin, UpdateView):
+class PageUpdate(PagesTabMixin, AdministratorPermissionRequiredMixin, PageDetailMixin, UpdateView):
     model = Page
     form_class = PageEditForm
     template_name = 'pretixcontrol/admin/pages/form.html'
     context_object_name = 'page'
+    tab_key = 'additional'
 
     def get_success_url(self) -> str:
         return reverse(
@@ -162,7 +291,7 @@ class PageVisibilityToggle(AdministratorPermissionRequiredMixin, PageDetailMixin
             require_https=request.is_secure(),
         ):
             return redirect(next_url)
-        return redirect('eventyay_admin:admin.pages')
+        return redirect('eventyay_admin:admin.pages.additional')
 
 
 class PageDelete(AdministratorPermissionRequiredMixin, PageDetailMixin, CompatDeleteView):
