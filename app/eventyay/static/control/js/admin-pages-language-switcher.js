@@ -53,6 +53,7 @@
             pills.forEach((pill) => {
                 pill.classList.toggle('active', normalize(pill.getAttribute('data-locale')) === locale);
             });
+            refreshRemoveButtons();
         };
 
         const refreshIndicators = () => {
@@ -67,8 +68,49 @@
             });
         };
 
+        const refreshRemoveButtons = () => {
+            // Hide the remove button when only one language remains.
+            const visiblePills = pills.filter((p) => !p.hidden);
+            pills.forEach((pill) => {
+                const btn = pill.querySelector('.page-language-pill-remove');
+                if (btn) btn.style.display = visiblePills.length <= 1 ? 'none' : '';
+            });
+        };
+
         pills.forEach((pill) => {
-            pill.addEventListener('click', () => apply(normalize(pill.getAttribute('data-locale'))));
+            pill.addEventListener('click', (e) => {
+                if (e.target.closest('.page-language-pill-remove')) return;
+                apply(normalize(pill.getAttribute('data-locale')));
+            });
+
+            const removeBtn = document.createElement('span');
+            removeBtn.className = 'page-language-pill-remove';
+            removeBtn.setAttribute('role', 'button');
+            removeBtn.setAttribute('aria-label', 'Remove language');
+            removeBtn.title = 'Remove language';
+            removeBtn.innerHTML = '&times;';
+            removeBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const locale = normalize(pill.getAttribute('data-locale'));
+                // Clear all field values for this locale before submitting.
+                units.forEach((unit) => {
+                    if (unit.locale !== locale) return;
+                    const field = unit.field || unit.el.querySelector('textarea, input[type!=hidden]');
+                    if (field) field.value = '';
+                });
+                // Tell the server to drop this locale by submitting all remaining locales.
+                switcher.querySelectorAll('input[name="page_locales"]').forEach((el) => el.remove());
+                pills.forEach((p) => {
+                    if (normalize(p.getAttribute('data-locale')) === locale) return;
+                    const inp = document.createElement('input');
+                    inp.type = 'hidden';
+                    inp.name = 'page_locales';
+                    inp.value = normalize(p.getAttribute('data-locale'));
+                    switcher.appendChild(inp);
+                });
+                form.submit();
+            });
+            pill.appendChild(removeBtn);
         });
 
         const addSelect = switcher.querySelector('.page-language-add');
@@ -86,6 +128,7 @@
         }
 
         refreshIndicators();
+        refreshRemoveButtons();
         form.addEventListener('input', refreshIndicators);
         apply(normalize(pills[0].getAttribute('data-locale')));
     }

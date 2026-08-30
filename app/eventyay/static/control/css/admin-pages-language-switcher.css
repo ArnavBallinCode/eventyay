@@ -58,6 +58,35 @@
     background: #fff;
 }
 
+.page-language-pill-remove {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 5px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    font-size: 13px;
+    font-weight: bold;
+    line-height: 1;
+    cursor: pointer;
+    color: inherit;
+    background: rgba(0,0,0,0.15);
+    vertical-align: middle;
+}
+
+.page-language-pill.active .page-language-pill-remove {
+    background: rgba(255,255,255,0.3);
+}
+
+.page-language-pill-remove:hover {
+    background: rgba(0,0,0,0.35) !important;
+}
+
+.page-language-pill-remove:hover {
+    background: rgba(0,0,0,0.15);
+}
+
 .page-language-add {
     width: auto;
     max-width: 220px;
