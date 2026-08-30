@@ -11,6 +11,7 @@ from zoneinfo import ZoneInfo
 import vat_moss_lite.errors
 import vat_moss_lite.id
 from babel import Locale
+from babel.core import get_global
 from django import forms
 from django.conf import settings
 from django.contrib import messages
@@ -323,9 +324,32 @@ def guess_country(event):
     country = event.settings.region or event.settings.invoice_address_from_country
     if not country:
         valid_countries = countries.countries
+
+        try:
+            parsed = Locale.parse(locale.replace('-', '_'))
+
+            if parsed.territory and parsed.territory in valid_countries:
+                return Country(parsed.territory)
+
+            likely_subtags = get_global('likely_subtags')
+
+            lang_script = f"{parsed.language}_{parsed.script}" if parsed.script else None
+
+            if lang_script and lang_script in likely_subtags:
+                territory = Locale.parse(likely_subtags[lang_script]).territory
+                if territory in valid_countries:
+                    return Country(territory)
+
+            if parsed.language in likely_subtags:
+                territory = Locale.parse(likely_subtags[parsed.language]).territory
+                if territory in valid_countries:
+                    return Country(territory)
+        except Exception:
+            pass
+
+        # Fallback to the original naive logic
         if '-' in locale:
             parts = locale.split('-')
-            # TODO: does this actually work?
             if parts[1].upper() in valid_countries:
                 country = Country(parts[1].upper())
             elif parts[0].upper() in valid_countries:
