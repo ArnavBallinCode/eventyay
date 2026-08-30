@@ -95,7 +95,7 @@
                 // Clear all field values for this locale before submitting.
                 units.forEach((unit) => {
                     if (unit.locale !== locale) return;
-                    const field = unit.field || unit.el.querySelector('textarea, input[type!=hidden]');
+                    const field = unit.field || unit.el.querySelector('textarea, input:not([type="hidden"])');
                     if (field) field.value = '';
                 });
                 // Tell the server to drop this locale by submitting all remaining locales.
