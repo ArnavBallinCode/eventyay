@@ -4,7 +4,8 @@ Compact language switcher shared across the Pages tabs. Shows one language at a
 time; the switcher toggles the visibility of the per-locale i18n widgets in the
 surrounding form. "Add language" enables an additional page language.
 {% endcomment %}
-<div class="page-language-switcher" data-page-language-switcher>
+<div class="page-language-switcher" data-page-language-switcher
+     data-remove-url="{% url 'eventyay_admin:admin.pages.locale.remove' %}">
     <span class="page-language-switcher-label">{% trans "Language" %}</span>
     <div class="btn-group page-language-pills" role="group" aria-label="{% trans 'Select language' %}">
         {% for code, name in form.page_locale_choices %}

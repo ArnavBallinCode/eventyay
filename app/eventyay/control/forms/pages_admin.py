@@ -26,6 +26,26 @@ CONTENT_PAGE_SLUGS = ('terms', 'privacy', 'pricing', 'support')
 # Slugs handled by the default-page tab (Documentation is an external link only).
 DEFAULT_PAGE_SLUGS = ('terms', 'privacy', 'pricing', 'documentation', 'support')
 
+# Every i18n settings key that stores per-locale page content across all tabs.
+# Used by the locale-remove endpoint to wipe content for a dropped locale globally.
+ALL_PAGE_I18N_KEYS = (
+    'footer_text',
+    'footer_link',
+    'banner_message',
+    'banner_message_detail',
+    'startpage_header_text',
+    'startpage_hero_title',
+    'startpage_hero_text',
+    'startpage_feature_1_title', 'startpage_feature_1_text',
+    'startpage_feature_2_title', 'startpage_feature_2_text',
+    'startpage_feature_3_title', 'startpage_feature_3_text',
+    'startpage_feature_4_title', 'startpage_feature_4_text',
+    'footer_page_terms_text',
+    'footer_page_privacy_text',
+    'footer_page_pricing_text',
+    'footer_page_support_text',
+)
+
 PAGE_TITLES = {
     'terms': _('Terms'),
     'privacy': _('Privacy'),

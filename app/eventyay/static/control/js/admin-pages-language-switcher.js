@@ -92,23 +92,27 @@
             removeBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const locale = normalize(pill.getAttribute('data-locale'));
-                // Clear all field values for this locale before submitting.
-                units.forEach((unit) => {
-                    if (unit.locale !== locale) return;
-                    const field = unit.field || unit.el.querySelector('textarea, input:not([type="hidden"])');
-                    if (field) field.value = '';
-                });
-                // Tell the server to drop this locale by submitting all remaining locales.
-                switcher.querySelectorAll('input[name="page_locales"]').forEach((el) => el.remove());
-                pills.forEach((p) => {
-                    if (normalize(p.getAttribute('data-locale')) === locale) return;
-                    const inp = document.createElement('input');
-                    inp.type = 'hidden';
-                    inp.name = 'page_locales';
-                    inp.value = normalize(p.getAttribute('data-locale'));
-                    switcher.appendChild(inp);
-                });
-                form.submit();
+                const label = pill.querySelector('.page-language-pill-name');
+                const name = label ? label.textContent.trim() : locale;
+                if (!window.confirm('Remove "' + name + '" from all page content? This cannot be undone.')) return;
+
+                // POST to the dedicated remove endpoint which clears every
+                // content key for this locale across all tabs, then updates page_locales.
+                const removeUrl = switcher.getAttribute('data-remove-url');
+                if (!removeUrl) return;
+                const form2 = document.createElement('form');
+                form2.method = 'post';
+                form2.action = removeUrl;
+                const csrf = document.querySelector('[name=csrfmiddlewaretoken]');
+                if (csrf) form2.appendChild(csrf.cloneNode());
+                const inp = document.createElement('input');
+                inp.type = 'hidden'; inp.name = 'locale'; inp.value = locale;
+                form2.appendChild(inp);
+                const next = document.createElement('input');
+                next.type = 'hidden'; next.name = 'next'; next.value = window.location.href;
+                form2.appendChild(next);
+                document.body.appendChild(form2);
+                form2.submit();
             });
             pill.appendChild(removeBtn);
         });
