@@ -1177,11 +1177,10 @@ def list_users(
             conditions.append(Q(email__icontains=search_term))
             conditions.append(Q(wikimedia_username__icontains=search_term))
 
-            try:
-                import uuid
-                conditions.append(Q(id=uuid.UUID(search_term)))
-            except ValueError:
-                pass
+            from django.db.models import CharField
+            from django.db.models.functions import Cast
+            qs = qs.annotate(id_text=Cast('id', output_field=CharField()))
+            conditions.append(Q(id_text__istartswith=search_term))
 
             with scopes_disabled():
                 matching_tokens = set(
