@@ -7,9 +7,9 @@ from channels.db import database_sync_to_async
 from channels.layers import get_channel_layer
 from django.core.cache import cache
 from django.core.paginator import InvalidPage, Paginator
-from django.db.models import Exists, OuterRef, Q
+from django.db.models import CharField, Exists, OuterRef, Q
 from django.db.models.fields.json import KeyTextTransform
-from django.db.models.functions import Lower
+from django.db.models.functions import Cast, Lower
 from django.db.transaction import atomic
 from django.utils.timezone import now
 from django_scopes import scopes_disabled
@@ -1174,11 +1174,11 @@ def list_users(
 
         if include_admin_info:
             conditions.append(Q(token_id__icontains=search_term))
-            conditions.append(Q(email__icontains=search_term))
+            conditions.append(
+                Q(email__icontains=search_term) | Q(profile__contact_email__icontains=search_term)
+            )
             conditions.append(Q(wikimedia_username__icontains=search_term))
 
-            from django.db.models import CharField
-            from django.db.models.functions import Cast
             qs = qs.annotate(id_text=Cast('id', output_field=CharField()))
             conditions.append(Q(id_text__istartswith=search_term))
 
