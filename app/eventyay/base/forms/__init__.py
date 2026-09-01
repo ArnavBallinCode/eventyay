@@ -1,9 +1,11 @@
 import logging
+import os
 
 import i18nfield.forms
 from django import forms
 from django.conf import settings
 from django.core.files import File
+from django.core.files.uploadedfile import SimpleUploadedFile, UploadedFile
 from django.core.validators import URLValidator
 from django.forms.models import ModelFormMetaclass
 from django.utils.crypto import get_random_string
@@ -17,9 +19,6 @@ from i18nfield.strings import LazyI18nString
 from eventyay.base.reldate import RelativeDateField, RelativeDateTimeField
 from eventyay.common.urls import is_http_url
 from eventyay.helpers.image_optimize import optimize_uploaded_image
-from django.core.files.uploadedfile import UploadedFile, SimpleUploadedFile
-import os
-
 from .validators import PlaceholderValidator  # NOQA
 
 
