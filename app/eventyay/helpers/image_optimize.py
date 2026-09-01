@@ -28,6 +28,7 @@ from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import UploadedFile
 from PIL import Image, ImageOps
 from PIL.Image import DecompressionBombError
+
 from eventyay.common.image import encode_optimized
 
 logger = logging.getLogger(__name__)

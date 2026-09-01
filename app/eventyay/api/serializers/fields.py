@@ -1,3 +1,4 @@
+import os
 from collections import OrderedDict
 
 from django.core.exceptions import ValidationError
@@ -7,7 +8,6 @@ from django.utils.translation import gettext_lazy as _
 from hierarkey.proxy import HierarkeyProxy
 from rest_framework import serializers
 
-import os
 from eventyay.common.urls import get_file_url_path, get_url_scheme, is_http_url, normalize_url_scheme
 from eventyay.helpers.image_optimize import optimize_uploaded_image
 
