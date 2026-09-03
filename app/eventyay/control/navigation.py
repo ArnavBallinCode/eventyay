@@ -4,7 +4,6 @@ from django.utils.translation import gettext_lazy as _
 from django.utils.translation import pgettext_lazy
 
 from eventyay.base.meetup import is_meetup_event
-from eventyay.control.checkin_app import get_eventyay_checkin_app_url, user_can_open_checkin_app
 from eventyay.control.signals import (
     nav_event,
     nav_event_settings,
@@ -458,15 +457,6 @@ def get_event_navigation(request: HttpRequest):
                 'active': 'event.orders.checkin' in url.url_name,
             },
         ]
-        if user_can_open_checkin_app(request):
-            checkin_children.append(
-                {
-                    'label': _('eventyay Check-in'),
-                    'url': get_eventyay_checkin_app_url(request),
-                    'external': True,
-                    'active': False,
-                }
-            )
         nav.append(
             {
                 'label': pgettext_lazy('navigation', 'Check-in'),
@@ -546,16 +536,24 @@ def get_admin_navigation(request):
     url = request.resolver_match
     if not url:
         return []
+    business_children = [
+        {
+            'label': _('Business Settings'),
+            'url': reverse('eventyay_admin:admin.global.business'),
+            'active': (url.url_name == 'admin.global.business'),
+        },
+        {
+            'label': _('Event vouchers'),
+            'url': reverse('eventyay_admin:admin.vouchers'),
+            'active': 'voucher' in url.url_name,
+        },
+    ]
+
     global_settings_children = [
         {
             'label': _('Settings'),
             'url': reverse('eventyay_admin:admin.global.settings'),
             'active': (url.url_name == 'admin.global.settings'),
-        },
-        {
-            'label': _('Business'),
-            'url': reverse('eventyay_admin:admin.global.business'),
-            'active': (url.url_name == 'admin.global.business' or 'voucher' in url.url_name),
         },
         {
             'label': _('System information'),
@@ -600,6 +598,13 @@ def get_admin_navigation(request):
             'active': any(c['active'] for c in global_settings_children),
             'icon': 'wrench',
             'children': global_settings_children,
+        },
+        {
+            'label': _('Business'),
+            'url': reverse('eventyay_admin:admin.global.business'),
+            'active': any(c['active'] for c in business_children),
+            'icon': 'briefcase',
+            'children': business_children,
         },
         {
             'label': _('Task management'),
@@ -704,12 +709,6 @@ def get_admin_navigation(request):
                         'active': ('sudo' in url.url_name),
                     },
                 ],
-            },
-            {
-                'label': _('Event vouchers'),
-                'url': reverse('eventyay_admin:admin.vouchers'),
-                'active': 'voucher' in url.url_name,
-                'icon': 'tags',
             },
         ]
     )
