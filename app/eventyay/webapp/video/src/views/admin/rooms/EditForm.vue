@@ -202,7 +202,7 @@ export default {
 				this.interpretationAdmin.loaded = true
 			}
 		},
-		async save() {
+		async save({ openScheduleAfterCreate = false, streamScheduleDraft = null } = {}) {
 			this.error = null
 			this.v$.$touch()
 			if (this.v$.$invalid) return
@@ -233,6 +233,10 @@ export default {
 				})
 				Object.assign(this.config, updated)
 
+				if (openScheduleAfterCreate && streamScheduleDraft) {
+					sessionStorage.setItem(`streamScheduleDraft:${roomId}`, JSON.stringify(streamScheduleDraft))
+				}
+
 				if (this.$refs.settings?.saveStreamSchedules) {
 					await this.$refs.settings.saveStreamSchedules(roomId)
 				}
@@ -251,9 +255,12 @@ export default {
 				}
 				this.saving = false
 				if (this.creating) {
+					const routeName = this.isChat ? 'admin:chat:item' : 'admin:rooms:item'
+					const query = openScheduleAfterCreate ? { schedule: 'new' } : {}
 					this.$router.push({
-						name: this.isChat ? 'admin:chat:item' : 'admin:rooms:item',
-						params: {roomId}
+						name: routeName,
+						params: {roomId},
+						query
 					})
 				}
 			} catch (error) {

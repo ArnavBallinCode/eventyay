@@ -148,10 +148,8 @@ class SettingsForm(i18nfield.forms.I18nFormMixin, HierarkeyForm):
     def clean(self):
         cleaned_data = super().clean()
         
-        for k, v in cleaned_data.items():
+        for k, v in list(cleaned_data.items()):
             if isinstance(v, UploadedFile) and k in {
-                'logo_image', 'event_logo_image', 'event_preview_image', 'og_image',
-                'organizer_logo_image', 'organizer_header_image',
                 'invoice_logo_image', 'startpage_header_image',
             }:
                 try:

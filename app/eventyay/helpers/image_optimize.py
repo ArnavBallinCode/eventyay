@@ -21,13 +21,14 @@ from __future__ import annotations
 
 import logging
 import os
+import warnings
 from io import BytesIO
 from typing import NamedTuple
 
 from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import UploadedFile
 from PIL import Image, ImageOps
-from PIL.Image import DecompressionBombError
+from PIL.Image import DecompressionBombError, DecompressionBombWarning
 
 from eventyay.common.image import encode_optimized
 
@@ -104,9 +105,11 @@ def optimize_uploaded_image(
         )
 
     try:
-        image = Image.open(BytesIO(raw))
-        image.load()
-    except DecompressionBombError as e:
+        with warnings.catch_warnings():
+            warnings.simplefilter('error', DecompressionBombWarning)
+            image = Image.open(BytesIO(raw))
+            image.load()
+    except (DecompressionBombError, DecompressionBombWarning) as e:
         logger.exception('Image too large to load (DecompressionBombError)')
         raise ValueError('Image exceeds maximum safe dimensions') from e
     except OSError:

@@ -319,6 +319,8 @@ def process_image(*, image, generate_thumbnail=False):
         return True
 
     extension = Path(image.name).suffix.lower()
+    if extension == '.jpeg':
+        extension = '.jpg'
     if extension not in REWRITABLE_ORIGINAL_EXTENSIONS:
         if generate_thumbnail:
             _generate_thumbnails(image)
@@ -366,22 +368,19 @@ def process_image(*, image, generate_thumbnail=False):
             else:
                 # Fallback for remote storage backends (e.g., S3)
                 original_name = image.name
-                temp_key = f'{original_name}.tmp{extension}'
                 
-                # 1. Upload to temp key first
-                saved_temp_key = image.storage.save(temp_key, ContentFile(buf.getvalue()))
+                # 1. Save new file (may generate a new name or overwrite depending on storage)
+                final_name = image.storage.save(original_name, ContentFile(buf.getvalue()))
                 
-                try:
-                    # 2. Upload succeeded, replace file contents
-                    image.storage.delete(original_name)
-                    final_name = image.storage.save(original_name, ContentFile(buf.getvalue()))
-                    if final_name != original_name:
-                        image.name = final_name
-                        if getattr(image, 'instance', None) is not None and getattr(image, 'field', None) is not None:
-                            image.instance.save(update_fields=[image.field.name])
-                finally:
-                    # 3. Clean up temp key
-                    image.storage.delete(saved_temp_key)
+                # 2. If a new name was generated, update the database and delete the old file
+                if final_name != original_name:
+                    image.name = final_name
+                    if getattr(image, 'instance', None) is not None and getattr(image, 'field', None) is not None:
+                        image.instance.save(update_fields=[image.field.name])
+                    try:
+                        image.storage.delete(original_name)
+                    except OSError:
+                        pass
             
     except (OSError, ValueError, DecompressionBombError, AttributeError, NotImplementedError):
         logger.exception('Failed to save processed image %s', getattr(image, 'name', image))

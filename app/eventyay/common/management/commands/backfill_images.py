@@ -156,7 +156,12 @@ class Command(BaseCommand):
                 return
 
             # Perform backup
-            self._backup_file(image, backup_dir, prefix=f'{model_name}_{pk}')
+            try:
+                self._backup_file(image, backup_dir, prefix=f'{model_name}_{pk}')
+            except OSError as e:
+                stats['failed'] += 1
+                self.stderr.write(self.style.ERROR(f'FAILED backup: {model_name} pk={pk} file={image.name} error={e}'))
+                return False
 
             # Compress
             if process_image(image=image, generate_thumbnail=generate_thumbnail):
