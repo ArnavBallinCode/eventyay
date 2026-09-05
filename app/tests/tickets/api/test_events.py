@@ -993,7 +993,6 @@ def test_patch_event_settings(token_client, organizer, event):
             {'primary_color': '#ff0000'},
             format='json',
         )
-        print(resp.data)
         assert resp.status_code == 200
         mocked.assert_any_call(args=(event.pk,))
 
