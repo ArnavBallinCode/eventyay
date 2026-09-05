@@ -45,6 +45,7 @@ MAX_WIDTH: dict[str, int] = {
     'picture': 1000,             # product/room picture
     'invoice_logo_image': 1000,
     'startpage_header_image': 1920,
+    'profile_picture': 1000,     # user profile picture
 }
 
 class OptimizedImages(NamedTuple):
