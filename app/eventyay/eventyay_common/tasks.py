@@ -3,7 +3,7 @@ import calendar
 import logging
 from datetime import datetime
 from datetime import timezone as tz
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from typing import Optional, Tuple
 
 from zoneinfo import ZoneInfo
@@ -18,6 +18,7 @@ from django.db import DatabaseError
 from django.db.models import Q
 from django_scopes import scopes_disabled
 
+from eventyay.base.decimal import round_decimal
 from eventyay.base.models.vouchers import InvoiceVoucher
 from eventyay.helpers.stripe_utils import (
     confirm_payment_intent,
@@ -363,6 +364,53 @@ def calculate_ticket_fee(
         return invoice_voucher.limit_events.filter(id=event.id).exists()
 
     ticket_fee = amount * (rate / 100)
+
+    max_fee = None
+    try:
+        from eventyay_business.models import CountryFeeSetting
+    except ImportError:
+        CountryFeeSetting = None
+
+    if CountryFeeSetting is not None:
+        country = event.settings.get('invoice_address_from_country') or event.settings.get('region')
+        if country and event.currency:
+            override = CountryFeeSetting.objects.filter(
+                country=str(country).strip().upper(),
+                currency=str(event.currency).strip().upper(),
+            ).first()
+            if override:
+                ticket_fee = amount * (override.service_fee_percent / Decimal('100.0'))
+                max_fee = round_decimal(override.maximum_fee, currency=event.currency)
+
+    if max_fee is None:
+        gs = GlobalSettingsObject()
+        raw_max_fee = gs.settings.get('ticket_fee_maximum', as_type=Decimal, default=Decimal('0.00'))
+
+        if raw_max_fee and raw_max_fee > Decimal('0.00'):
+            base_currency = getattr(settings, 'DEFAULT_CURRENCY', 'USD')
+            if event.currency and event.currency != base_currency:
+                rates_dict = gs.settings.get('ecb_rates_dict', as_type=dict) or {}
+                if base_currency in rates_dict and event.currency in rates_dict:
+                    rate_conv = (
+                        Decimal(str(rates_dict[event.currency])) / Decimal(str(rates_dict[base_currency]))
+                    ).quantize(Decimal('0.0001'), ROUND_HALF_UP)
+                    max_fee = round_decimal(raw_max_fee * rate_conv, currency=event.currency)
+                else:
+                    logger.warning(
+                        'ECB rates unavailable for %s→%s; skipping global fee cap for ticket fee calculation.',
+                        base_currency,
+                        event.currency,
+                    )
+                    max_fee = Decimal('0.00')
+            else:
+                max_fee = round_decimal(raw_max_fee, currency=event.currency)
+        else:
+            max_fee = Decimal('0.00')
+
+    ticket_fee = round_decimal(ticket_fee, currency=event.currency)
+    if max_fee and max_fee > Decimal('0.00') and ticket_fee > max_fee:
+        ticket_fee = max_fee
+
     final_ticket_fee = ticket_fee
     voucher_discount = Decimal('0.00')
 
