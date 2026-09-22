@@ -5,8 +5,34 @@ from django.core.exceptions import ValidationError
 
 from eventyay.base.models import BillingInvoice, Organizer
 from eventyay.base.models.organizer import OrganizerBillingModel
-from eventyay.services.stripe.credentials import get_stripe_secret_key
+from eventyay.services.stripe.credentials import (
+    get_stripe_key,
+    get_stripe_publishable_key,
+    get_stripe_secret_key,
+    get_stripe_webhook_secret_key,
+)
+
+
+from eventyay.services.stripe.client import get_stripe_client
 from eventyay.services.stripe.errors import handle_stripe_errors
+
+__all__ = [
+    "get_stripe_key",
+    "get_stripe_publishable_key",
+    "get_stripe_secret_key",
+    "get_stripe_webhook_secret_key",
+    "handle_stripe_errors",
+    "create_stripe_customer",
+    "update_payment_info",
+    "get_payment_method_info",
+    "update_customer_info",
+    "attach_payment_method_to_customer",
+    "get_setup_intent",
+    "create_payment_intent",
+    "confirm_payment_intent",
+    "process_auto_billing_charge_stripe",
+]
+
 
 logger = logging.getLogger(__name__)
 
@@ -62,11 +88,7 @@ def create_stripe_customer(email: str, name: str):
     @param name: A string representing the name.
     @return: A dictionary containing the customer information.
     """
-    customer = stripe.Customer.create(
-        api_key=get_stripe_secret_key(),
-        email=email,
-        name=name,
-    )
+    customer = get_stripe_client().customers.create({"email": email, "name": name})
     logger.info("Created a successful customer.")
     return customer
 
@@ -91,8 +113,8 @@ def update_payment_info(setup_intent_id: str, customer_id: str):
         logger.error("No billing settings found for the customer %s", customer_id)
         raise ValidationError("No billing settings found for the customer.")
     attach_payment_method_to_customer(payment_method, customer_id)
-    customer_info_updated = stripe.Customer.modify(
-        customer_id, api_key=get_stripe_secret_key(), invoice_settings={"default_payment_method": payment_method}
+    customer_info_updated = get_stripe_client().customers.update(
+        customer_id, {"invoice_settings": {"default_payment_method": payment_method}}
     )
     logger.info("Updated successful payment information.")
     return customer_info_updated
@@ -108,9 +130,7 @@ def get_payment_method_info(stripe_customer_id: str):
     billing_settings = OrganizerBillingModel.objects.filter(stripe_customer_id=stripe_customer_id).first()
     if not billing_settings or not billing_settings.stripe_payment_method_id:
         return None
-    payment_method = stripe.PaymentMethod.retrieve(
-        billing_settings.stripe_payment_method_id, api_key=get_stripe_secret_key()
-    )
+    payment_method = get_stripe_client().payment_methods.retrieve(billing_settings.stripe_payment_method_id)
     logger.info("Retrieve successful payment information.")
     return payment_method
 
@@ -124,9 +144,7 @@ def update_customer_info(customer_id: str, email: str, name: str):
     @param name: A string representing the name.
     @return: A dictionary containing the updated customer information.
     """
-    updated_customer_info = stripe.Customer.modify(
-        customer_id, api_key=get_stripe_secret_key(), email=email, name=name
-    )
+    updated_customer_info = get_stripe_client().customers.update(customer_id, {"email": email, "name": name})
     logger.info("Updated successful customer information.")
     return updated_customer_info
 
@@ -139,9 +157,7 @@ def attach_payment_method_to_customer(payment_method_id: str, customer_id: str):
     @param customer_id: A string representing the customer ID.
     @return: A dictionary containing the attached payment method information.
     """
-    attached_payment_method = stripe.PaymentMethod.attach(
-        payment_method_id, customer=customer_id, api_key=get_stripe_secret_key()
-    )
+    attached_payment_method = get_stripe_client().payment_methods.attach(payment_method_id, {"customer": customer_id})
     logger.info(
         "Attached successful payment method.",
     )
@@ -155,7 +171,7 @@ def get_setup_intent(setup_intent_id: str):
     @param setup_intent_id: A string representing the setup intent ID.
     @return: A dictionary containing the setup intent information.
     """
-    setup_intent = stripe.SetupIntent.retrieve(setup_intent_id, api_key=get_stripe_secret_key())
+    setup_intent = get_stripe_client().setup_intents.retrieve(setup_intent_id)
     logger.info("Retrieve successful setup intent.")
     return setup_intent
 
@@ -179,14 +195,15 @@ def create_payment_intent(
     @param invoice_id: A string representing the invoice ID.
     @return: A dictionary containing the payment intent information.
     """
-    payment_intent = stripe.PaymentIntent.create(
-        api_key=get_stripe_secret_key(),
-        amount=int(amount * 100),
-        currency=currency,
-        customer=customer_id,
-        payment_method=payment_method_id,
-        automatic_payment_methods={"enabled": True, "allow_redirects": "never"},
-        metadata=metadata,
+    payment_intent = get_stripe_client().payment_intents.create(
+        {
+            "amount": int(amount * 100),
+            "currency": currency,
+            "customer": customer_id,
+            "payment_method": payment_method_id,
+            "automatic_payment_methods": {"enabled": True, "allow_redirects": "never"},
+            "metadata": metadata,
+        }
     )
     billing_invoice_updated = BillingInvoice.objects.filter(id=invoice_id).update(
         stripe_payment_intent_id=payment_intent.id
@@ -206,8 +223,8 @@ def confirm_payment_intent(payment_intent_id: str, payment_method_id: str):
     @param payment_method_id: A string representing the payment method ID.
     @return: A dictionary containing the payment intent confirmation information.
     """
-    payment_intent = stripe.PaymentIntent.retrieve(payment_intent_id, api_key=get_stripe_secret_key())
-    payment_intent.confirm(payment_method=payment_method_id)
+    payment_intent = get_stripe_client().payment_intents.retrieve(payment_intent_id)
+    get_stripe_client().payment_intents.confirm(payment_intent_id, {"payment_method": payment_method_id})
     logger.info("Confirmed successful payment intent.")
     return payment_intent
 
@@ -232,12 +249,3 @@ def process_auto_billing_charge_stripe(
     payment_intent = create_payment_intent(amount, currency, customer_id, payment_method.id, metadata, invoice_id)
     payment_intent_confirmation_info = confirm_payment_intent(payment_intent.id, payment_method.id)
     return payment_intent_confirmation_info
-
-
-# Re-export credentials for backward compatibility
-from eventyay.services.stripe.credentials import (
-    get_stripe_key,
-    get_stripe_publishable_key,
-    get_stripe_secret_key,
-    get_stripe_webhook_secret_key,
-)
