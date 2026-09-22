@@ -1414,7 +1414,8 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'eventyay.api.auth.device.DeviceTokenAuthentication',
         'rest_framework.authentication.SessionAuthentication',
-        'eventyay.api.auth.token.TeamTokenAuthentication',
+        # UserApiToken (/orga/me) and TeamAPIToken share the "Token" keyword.
+        'eventyay.common.auth.UserOrTeamTokenAuthentication',
         'oauth2_provider.contrib.rest_framework.OAuth2Authentication',
     ),
     'DEFAULT_RENDERER_CLASSES': ('rest_framework.renderers.JSONRenderer',),
