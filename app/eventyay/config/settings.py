@@ -1155,6 +1155,7 @@ CELERY_TASK_ROUTES = {
     'eventyay.base.services.tickets.invalidate_cache': {'queue': 'longrunning'},
     # Registered name in eventyay.agenda.tasks (legacy pretalx namespace).
     'pretalx.agenda.export_schedule_html': {'queue': 'longrunning'},
+    'eventyay.person.ensure_avatar_thumbnails': {'queue': 'longrunning'},
 }
 
 # The folder where static files are collected to. It is shared with Nginx.
