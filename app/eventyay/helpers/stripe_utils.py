@@ -223,8 +223,9 @@ def confirm_payment_intent(payment_intent_id: str, payment_method_id: str):
     @param payment_method_id: A string representing the payment method ID.
     @return: A dictionary containing the payment intent confirmation information.
     """
-    payment_intent = get_stripe_client().payment_intents.retrieve(payment_intent_id)
-    get_stripe_client().payment_intents.confirm(payment_intent_id, {"payment_method": payment_method_id})
+    payment_intent = get_stripe_client().payment_intents.confirm(
+        payment_intent_id, {"payment_method": payment_method_id}
+    )
     logger.info("Confirmed successful payment intent.")
     return payment_intent
 
