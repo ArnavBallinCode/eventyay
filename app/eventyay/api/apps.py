@@ -7,6 +7,7 @@ class EventyayApiConfig(AppConfig):
 
     def ready(self):
         from . import schema, signals, webhooks  # noqa
+        import eventyay.services.stripe.signals_receivers  # noqa
 
 
 default_app_config = 'eventyay.api.EventyayApiConfig'

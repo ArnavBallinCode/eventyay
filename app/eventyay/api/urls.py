@@ -233,8 +233,8 @@ urlpatterns = [
     path('upload', upload.UploadView.as_view(), name='upload'),
     path('me', user.MeView.as_view(), name='user.me'),
     path('version', version.VersionView.as_view(), name='version'),
-    path('webhook/stripe', stripe_webhook_view, name='stripe-webhook'),
-    path('webhook/stripe/', stripe_webhook_view, name='stripe-webhook-slash'),
+    path('stripe/webhook/', stripe_webhook_view, name='stripe-webhook'),
+    
     path(
         '<orgslug:organizer>/<slug:event>/schedule-public',
         event.talk_schedule_public,
