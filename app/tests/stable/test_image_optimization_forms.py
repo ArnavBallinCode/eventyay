@@ -43,7 +43,7 @@ def test_info_form_clean_image_without_new_upload(event):
     # Setup submission with an existing image
     with scope(event=event):
         sub_type = SubmissionType(event=event, name="Test Type")
-        submission = Submission(event=event, title="Existing", submission_type=sub_type)
+        submission = Submission(event=event, title="Existing", submission_type=sub_type, pk=1)
         existing_image = _create_test_image()
         submission.image.save('test.png', existing_image, save=False)
         
