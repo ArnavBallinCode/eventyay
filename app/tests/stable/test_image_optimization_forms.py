@@ -6,7 +6,7 @@ from django.utils.datastructures import MultiValueDict
 from django_scopes import scope
 from eventyay.submission.forms.submission import InfoForm
 from eventyay.person.forms.profile import SpeakerProfileForm
-from eventyay.base.models import Submission, User, SpeakerProfile
+from eventyay.base.models import Submission, User, SpeakerProfile, SubmissionType
 
 def _create_test_image(color="red", format="PNG", width=100, height=100):
     img = Image.new("RGB", (width, height), color)
@@ -42,7 +42,8 @@ def test_info_form_clean_image_with_new_upload(event, settings):
 def test_info_form_clean_image_without_new_upload(event):
     # Setup submission with an existing image
     with scope(event=event):
-        submission = Submission(event=event, title="Existing")
+        sub_type = SubmissionType(event=event, name="Test Type")
+        submission = Submission(event=event, title="Existing", submission_type=sub_type)
         existing_image = _create_test_image()
         submission.image.save('test.png', existing_image, save=False)
         
@@ -71,6 +72,7 @@ def test_speaker_profile_form_clean_avatar_with_new_upload(user, event, settings
         upload = _create_test_image()
         form = SpeakerProfileForm(
             user=user,
+            event=event,
             instance=profile,
             data={'name': 'Test User', 'email': user.email},
             files=MultiValueDict({'avatar': [upload]})
@@ -92,6 +94,7 @@ def test_speaker_profile_form_clean_avatar_without_new_upload(user, event):
         
         form = SpeakerProfileForm(
             user=user,
+            event=event,
             instance=profile,
             data={'name': 'Test User', 'email': user.email},
             files=MultiValueDict({})
