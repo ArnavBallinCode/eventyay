@@ -433,16 +433,18 @@ def create_thumbnail(image, size):
     img.thumbnail(THUMBNAIL_SIZES[size], resample=Resampling.LANCZOS)
     thumbnail_field = getattr(image.instance, thumbnail_field_name)
 
-    extension = '.jpg'
-    save_format = 'JPEG'
-    save_kwargs = {'quality': 80, 'progressive': True, 'optimize': True}
-
-    if img.mode.lower() in ('rgba', 'la', 'pa'):
-        extension = '.png'
-        save_format = 'PNG'
-        save_kwargs = {'optimize': True}
-    elif img.mode != 'RGB':
-        img = img.convert('RGB')
+    has_alpha = _has_alpha(img)
+    
+    if has_alpha:
+        extension = '.webp'
+        save_format = 'WEBP'
+        save_kwargs = {'quality': 80}
+    else:
+        extension = '.webp'
+        save_format = 'WEBP'
+        save_kwargs = {'quality': 80}
+        if img.mode != 'RGB':
+            img = img.convert('RGB')
 
     thumbnail_name = Path(image.name).stem + f'_thumbnail_{size}' + extension
     # Write the image to a BytesIO object
