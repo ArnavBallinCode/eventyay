@@ -2,6 +2,7 @@ import pytest
 from io import BytesIO
 from PIL import Image
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.utils.datastructures import MultiValueDict
 from django_scopes import scope
 from eventyay.submission.forms.submission import InfoForm
 from eventyay.person.forms.profile import SpeakerProfileForm
@@ -24,7 +25,7 @@ def test_info_form_clean_image_with_new_upload(event, settings):
         form = InfoForm(
             event=event,
             data={'title': 'Test submission', 'abstract': 'Test abstract', 'content_locale': 'en'},
-            files={'image': upload}
+            files=MultiValueDict({'image': [upload]})
         )
         
         # We only care about the clean_image part. Even if the form is invalid for other reasons,
@@ -50,7 +51,7 @@ def test_info_form_clean_image_without_new_upload(event):
             event=event,
             instance=submission,
             data={'title': 'Test submission', 'abstract': 'Test abstract', 'content_locale': 'en'},
-            files={}
+            files=MultiValueDict({})
         )
         
         form.is_valid()
@@ -72,7 +73,7 @@ def test_speaker_profile_form_clean_avatar_with_new_upload(user, event, settings
             user=user,
             instance=profile,
             data={'name': 'Test User', 'email': user.email},
-            files={'avatar': upload}
+            files=MultiValueDict({'avatar': [upload]})
         )
         
         form.is_valid()
@@ -93,7 +94,7 @@ def test_speaker_profile_form_clean_avatar_without_new_upload(user, event):
             user=user,
             instance=profile,
             data={'name': 'Test User', 'email': user.email},
-            files={}
+            files=MultiValueDict({})
         )
         
         form.is_valid()
