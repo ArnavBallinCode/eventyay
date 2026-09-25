@@ -364,8 +364,8 @@ class SpeakerProfileForm(
 
     class Meta:
         model = SpeakerProfile
-        fields = ('biography',)
-        public_fields = ['fullname', 'biography', 'avatar']
+        fields = ('biography', 'job_title', 'organization')
+        public_fields = ['fullname', 'biography', 'job_title', 'organization', 'avatar']
         widgets = {
             'biography': RichTextWidget,
             'avatar': AvatarInput,
@@ -375,7 +375,7 @@ class SpeakerProfileForm(
         field_classes = {
             'avatar': ImageField,
         }
-        request_require = {'biography', 'availabilities'}
+        request_require = {'biography', 'job_title', 'organization', 'availabilities'}
 
 
 class OrgaProfileForm(forms.ModelForm):
