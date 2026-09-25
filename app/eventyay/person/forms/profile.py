@@ -1,6 +1,8 @@
 from functools import partial
 import logging
+import os
 
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django import forms
 from django.forms import Textarea
 from django.conf import settings
@@ -24,6 +26,7 @@ from eventyay.common.forms.fields import (
     NewPasswordField,
     SizeFileField,
 )
+from eventyay.helpers.image_optimize import optimize_uploaded_image
 from eventyay.common.forms.mixins import (
     ConfiguredFieldOrderMixin,
     I18nHelpText,
@@ -260,12 +263,8 @@ class SpeakerProfileForm(
 
     def clean_avatar(self):
         avatar = self.cleaned_data.get('avatar')
-        if avatar and not isinstance(avatar, str):
+        if avatar and 'avatar' in self.files:
             try:
-                from eventyay.helpers.image_optimize import optimize_uploaded_image
-                from django.core.files.uploadedfile import SimpleUploadedFile
-                import os
-                
                 result = optimize_uploaded_image(avatar, 'avatar', None)
                 base_name, _ = os.path.splitext(avatar.name)
                 avatar = SimpleUploadedFile(

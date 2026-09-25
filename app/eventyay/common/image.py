@@ -375,12 +375,14 @@ def process_image(*, image, generate_thumbnail=False):
                     os.chmod(temp_path, os.stat(local_path).st_mode)
                     
                     if extension != new_extension:
-                        new_local_path = str(Path(local_path).with_suffix(new_extension))
-                        os.replace(temp_path, new_local_path)
-                        
                         original_name = image.name
                         new_name = str(Path(original_name).with_suffix(new_extension))
-                        image.name = new_name
+                        final_name = image.storage.get_available_name(new_name)
+                        new_local_path = image.storage.path(final_name)
+                        
+                        os.replace(temp_path, new_local_path)
+                        
+                        image.name = final_name
                         if getattr(image, 'instance', None) is not None and getattr(image, 'field', None) is not None:
                             image.instance.save(update_fields=[image.field.name])
                             
