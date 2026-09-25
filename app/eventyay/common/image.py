@@ -238,7 +238,7 @@ def _has_alpha(image: Image.Image) -> bool:
             if alpha_extrema[0] < 255:
                 return True
         return False
-    elif image.mode == 'P' and 'transparency' in image.info:
+    elif image.mode in ('P', 'L', 'RGB') and 'transparency' in image.info:
         return True
     return False
 
