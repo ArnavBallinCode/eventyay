@@ -457,6 +457,8 @@ def create_thumbnail(image, size):
         extension = '.webp'
         save_format = 'WEBP'
         save_kwargs = {'quality': 80}
+        if img.mode != 'RGBA':
+            img = img.convert('RGBA')
     else:
         extension = '.webp'
         save_format = 'WEBP'
