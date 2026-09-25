@@ -348,7 +348,7 @@ def process_image(*, image, generate_thumbnail=False):
         except (NotImplementedError, AttributeError, OSError):
             original_size = 0
             
-        optimized_bytes, new_extension = encode_optimized(img, extension, keep_format=True)
+        optimized_bytes, new_extension = encode_optimized(img, extension, keep_format=False)
         
         if original_size > 0 and len(optimized_bytes) >= original_size and extension == new_extension:
             # Prevent PNG/WebP size growth: if the new file is larger and format is identical, keep original

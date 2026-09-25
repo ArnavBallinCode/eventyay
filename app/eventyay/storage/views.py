@@ -232,7 +232,7 @@ class UploadView(UploadMixin, View):
             image,
             original_ext,
             max_dimensions=max_dimensions,
-            keep_format=True,
+            keep_format=False,
         )
         # Recompressing a lossless image can make it bigger, but an image that had to be
         # scaled down is always stored recompressed, and so is JPEG, whose EXIF metadata
