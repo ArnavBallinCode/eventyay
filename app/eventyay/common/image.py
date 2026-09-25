@@ -267,8 +267,8 @@ def encode_optimized(img, original_ext, max_dimensions=None, keep_format=False):
         
     img_without_exif = Image.new(mode, img.size)
     if has_alpha:
-        # Paste with self as mask to preserve alpha
-        img_without_exif.paste(img, img)
+        # Convert to RGBA to preserve alpha, including palette transparency
+        img_without_exif.paste(img.convert('RGBA'))
     else:
         img_without_exif.paste(img)
     

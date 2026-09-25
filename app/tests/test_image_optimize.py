@@ -50,13 +50,34 @@ def test_optimize_uploaded_image_resizes(setting_key):
     assert result.original_ext == 'jpeg'
 
 
-def test_optimize_uploaded_image_keeps_png_with_alpha():
-    upload = _create_test_image(800, 600, mode='RGBA', format='PNG')
+def test_optimize_uploaded_image_preserves_alpha_in_webp():
+    img = Image.new('RGBA', (800, 600), color=(255, 0, 0, 255))
+    # Make top left corner partially transparent and next pixel fully transparent
+    img.putpixel((0, 0), (0, 255, 0, 128))
+    img.putpixel((1, 1), (0, 0, 255, 0))
+    
+    buf = BytesIO()
+    img.save(buf, format='PNG')
+    buf.seek(0)
+    upload = SimpleUploadedFile(
+        name='test.png',
+        content=buf.read(),
+        content_type='image/png',
+    )
+    
     result = optimize_uploaded_image(upload, 'event_logo_image')
 
     opt_img = Image.open(result.optimized)
     assert opt_img.format == 'WEBP'
     assert result.optimized_ext == 'webp'
+    
+    opt_img_rgba = opt_img.convert('RGBA')
+    pixel_partial = opt_img_rgba.getpixel((0, 0))
+    pixel_full = opt_img_rgba.getpixel((1, 1))
+    
+    # WebP lossy encoding might slightly shift alpha values, but they should be close
+    assert 100 < pixel_partial[3] < 150
+    assert 0 <= pixel_full[3] < 10
 
 
 def test_optimize_uploaded_image_converts_bmp_to_jpg():
