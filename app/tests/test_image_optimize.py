@@ -46,7 +46,7 @@ def test_optimize_uploaded_image_resizes(setting_key):
     assert orig_img.size == (orig_w, orig_h)
 
     # Extensions
-    assert result.optimized_ext == 'jpg'
+    assert result.optimized_ext == 'webp'
     assert result.original_ext == 'jpeg'
 
 
@@ -55,8 +55,8 @@ def test_optimize_uploaded_image_keeps_png_with_alpha():
     result = optimize_uploaded_image(upload, 'event_logo_image')
 
     opt_img = Image.open(result.optimized)
-    assert opt_img.format == 'PNG'
-    assert result.optimized_ext == 'png'
+    assert opt_img.format == 'WEBP'
+    assert result.optimized_ext == 'webp'
 
 
 def test_optimize_uploaded_image_converts_bmp_to_jpg():
@@ -65,8 +65,8 @@ def test_optimize_uploaded_image_converts_bmp_to_jpg():
     result = optimize_uploaded_image(upload, 'logo_image')
 
     opt_img = Image.open(result.optimized)
-    assert opt_img.format == 'JPEG'
-    assert result.optimized_ext == 'jpg'
+    assert opt_img.format == 'WEBP'
+    assert result.optimized_ext == 'webp'
     assert result.original_ext == 'bmp'
 
 
