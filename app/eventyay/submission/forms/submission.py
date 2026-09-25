@@ -225,6 +225,28 @@ class InfoForm(
                 self.save_questions(key, value)
         return result
 
+    def clean_image(self):
+        image = self.cleaned_data.get('image')
+        if image and not isinstance(image, str):
+            try:
+                from eventyay.helpers.image_optimize import optimize_uploaded_image
+                from django.core.files.uploadedfile import SimpleUploadedFile
+                import os
+                import logging
+                
+                result = optimize_uploaded_image(image, 'image', None)
+                base_name, _ = os.path.splitext(image.name)
+                image = SimpleUploadedFile(
+                    f"{base_name}.{result.optimized_ext}",
+                    result.optimized.read(),
+                    content_type=f"image/{result.optimized_ext}"
+                )
+            except OSError:
+                import logging
+                logging.getLogger(__name__).exception("Failed to process submission image")
+                raise forms.ValidationError(_('Failed to process image.'))
+        return image
+
     def clean(self):
         cleaned_data = super().clean()
 

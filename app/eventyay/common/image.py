@@ -368,12 +368,29 @@ def process_image(*, image, generate_thumbnail=False):
                 dir_name = os.path.dirname(local_path)
                 temp_path = None
                 try:
-                    fd, temp_path = tempfile.mkstemp(dir=dir_name, suffix=extension)
+                    fd, temp_path = tempfile.mkstemp(dir=dir_name, suffix=new_extension)
                     with os.fdopen(fd, 'wb') as temp_f:
                         temp_f.write(buf.getvalue())
                     
                     os.chmod(temp_path, os.stat(local_path).st_mode)
-                    os.replace(temp_path, local_path)
+                    
+                    if extension != new_extension:
+                        new_local_path = str(Path(local_path).with_suffix(new_extension))
+                        os.replace(temp_path, new_local_path)
+                        
+                        original_name = image.name
+                        new_name = str(Path(original_name).with_suffix(new_extension))
+                        image.name = new_name
+                        if getattr(image, 'instance', None) is not None and getattr(image, 'field', None) is not None:
+                            image.instance.save(update_fields=[image.field.name])
+                            
+                        try:
+                            os.unlink(local_path)
+                        except OSError:
+                            pass
+                    else:
+                        os.replace(temp_path, local_path)
+                        
                     temp_path = None
                 finally:
                     if temp_path is not None:
@@ -384,9 +401,10 @@ def process_image(*, image, generate_thumbnail=False):
             else:
                 # Fallback for remote storage backends (e.g., S3)
                 original_name = image.name
+                new_name = str(Path(original_name).with_suffix(new_extension))
                 
                 # 1. Save new file (may generate a new name or overwrite depending on storage)
-                final_name = image.storage.save(original_name, ContentFile(buf.getvalue()))
+                final_name = image.storage.save(new_name, ContentFile(buf.getvalue()))
                 
                 # 2. If a new name was generated, update the database and delete the old file
                 if final_name != original_name:

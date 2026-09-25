@@ -1,4 +1,5 @@
 from functools import partial
+import logging
 
 from django import forms
 from django.forms import Textarea
@@ -256,6 +257,26 @@ class SpeakerProfileForm(
         if qs.filter(email__iexact=email):
             raise ValidationError(get_email_address_error())
         return email
+
+    def clean_avatar(self):
+        avatar = self.cleaned_data.get('avatar')
+        if avatar and not isinstance(avatar, str):
+            try:
+                from eventyay.helpers.image_optimize import optimize_uploaded_image
+                from django.core.files.uploadedfile import SimpleUploadedFile
+                import os
+                
+                result = optimize_uploaded_image(avatar, 'avatar', None)
+                base_name, _ = os.path.splitext(avatar.name)
+                avatar = SimpleUploadedFile(
+                    f"{base_name}.{result.optimized_ext}",
+                    result.optimized.read(),
+                    content_type=f"image/{result.optimized_ext}"
+                )
+            except OSError:
+                logging.getLogger(__name__).exception("Failed to process avatar")
+                raise forms.ValidationError(_('Failed to process image.'))
+        return avatar
 
     def clean_avatar_source(self):
         return validate_avatar_license_text(self.cleaned_data.get('avatar_source'))
