@@ -80,15 +80,21 @@ def test_optimize_uploaded_image_preserves_alpha_in_webp():
     assert 0 <= pixel_full[3] < 10
 
 
-def test_optimize_uploaded_image_preserves_palette_transparency():
-    # Create an image with palette transparency
-    img = Image.new('P', (800, 600), color=0)
-    img.putpalette([255, 0, 0, 0, 255, 0])  # index 0 is red, index 1 is green
-    img.putpixel((1, 1), 1)  # Put a green pixel
+@pytest.mark.parametrize("mode,color_bg,color_fg,transparency_val", [
+    ('P', 0, 1, 0),
+    ('L', 0, 255, 0),
+    ('RGB', (255, 0, 0), (0, 255, 0), (255, 0, 0)),
+])
+def test_optimize_uploaded_image_preserves_metadata_transparency(mode, color_bg, color_fg, transparency_val):
+    # Create an image with metadata transparency
+    img = Image.new(mode, (800, 600), color=color_bg)
+    if mode == 'P':
+        img.putpalette([255, 0, 0, 0, 255, 0])  # index 0 is red, index 1 is green
+    img.putpixel((1, 1), color_fg)
     
     buf = BytesIO()
-    # Save with index 0 as transparent
-    img.save(buf, format='PNG', transparency=0)
+    # Save with transparency_val as transparent
+    img.save(buf, format='PNG', transparency=transparency_val)
     buf.seek(0)
     
     upload = SimpleUploadedFile(
