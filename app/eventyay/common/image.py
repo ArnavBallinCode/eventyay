@@ -357,14 +357,16 @@ def process_image(*, image, generate_thumbnail=False):
             # We need to overwrite
             buf = BytesIO(optimized_bytes)
             
+            max_length = getattr(image.field, 'max_length', None) if getattr(image, 'field', None) is not None else None
+            
             local_path = None
             try:
                 local_path = image.path
             except (NotImplementedError, AttributeError):
                 pass
     
-            if local_path:
-                # Attempt atomic local file replacement
+            if local_path and extension == new_extension:
+                # Attempt atomic local file replacement when format is unchanged
                 dir_name = os.path.dirname(local_path)
                 temp_path = None
                 try:
@@ -373,26 +375,7 @@ def process_image(*, image, generate_thumbnail=False):
                         temp_f.write(buf.getvalue())
                     
                     os.chmod(temp_path, os.stat(local_path).st_mode)
-                    
-                    if extension != new_extension:
-                        original_name = image.name
-                        new_name = str(Path(original_name).with_suffix(new_extension))
-                        final_name = image.storage.get_available_name(new_name)
-                        new_local_path = image.storage.path(final_name)
-                        
-                        os.replace(temp_path, new_local_path)
-                        
-                        image.name = final_name
-                        if getattr(image, 'instance', None) is not None and getattr(image, 'field', None) is not None:
-                            image.instance.save(update_fields=[image.field.name])
-                            
-                        try:
-                            os.unlink(local_path)
-                        except OSError:
-                            pass
-                    else:
-                        os.replace(temp_path, local_path)
-                        
+                    os.replace(temp_path, local_path)
                     temp_path = None
                 finally:
                     if temp_path is not None:
@@ -401,14 +384,14 @@ def process_image(*, image, generate_thumbnail=False):
                         except OSError:
                             pass
             else:
-                # Fallback for remote storage backends (e.g., S3)
+                # Different extension or remote storage: save via storage API to resolve collisions safely
                 original_name = image.name
                 new_name = str(Path(original_name).with_suffix(new_extension))
                 
-                # 1. Save new file (may generate a new name or overwrite depending on storage)
-                final_name = image.storage.save(new_name, ContentFile(buf.getvalue()))
+                # 1. Save new file (storage API handles unique naming and atomicity)
+                final_name = image.storage.save(new_name, ContentFile(buf.getvalue()), max_length=max_length)
                 
-                # 2. If a new name was generated, update the database and delete the old file
+                # 2. Update the database and delete the old file (only if name changed or extension changed)
                 if final_name != original_name:
                     image.name = final_name
                     if getattr(image, 'instance', None) is not None and getattr(image, 'field', None) is not None:
