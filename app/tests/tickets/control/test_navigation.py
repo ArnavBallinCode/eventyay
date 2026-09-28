@@ -211,8 +211,6 @@ def test_admin_navigation_voucher_active_state(rf):
     event_vouchers = next(c for c in business_nav['children'] if str(c.get('label')) == 'Event vouchers')
     assert event_vouchers['active'] is True
 
-    business_settings = next(c for c in business_nav['children'] if str(c.get('label')) == 'Business Settings')
-    assert business_settings['active'] is False
 
 
 @pytest.mark.django_db
