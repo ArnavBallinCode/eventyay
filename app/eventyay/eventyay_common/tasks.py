@@ -29,7 +29,6 @@ from eventyay.helpers.stripe_utils import (
 from ..base.models import BillingInvoice, Event, Order, Organizer
 from ..base.models.organizer import OrganizerBillingModel
 from ..base.services.mail import mail_send_task
-from ..base.settings import GlobalSettingsObject
 from ..consts import EVENTYAY_EMAIL_NONE_VALUE
 from ..helpers.jwt_generate import generate_sso_token
 from .billing_invoice import InvoicePDFGenerator
@@ -358,25 +357,7 @@ def calculate_ticket_fee(
 
     ticket_fee = amount * (rate / 100)
 
-    max_fee = None
-    try:
-        from eventyay_business.models import CountryFeeSetting
-    except ImportError:
-        CountryFeeSetting = None
-
-    if CountryFeeSetting is not None:
-        country = event.settings.get('invoice_address_from_country') or event.settings.get('region')
-        if country and event.currency:
-            override = CountryFeeSetting.objects.filter(
-                country=str(country).strip().upper(),
-                currency=str(event.currency).strip().upper(),
-            ).first()
-            if override:
-                ticket_fee = amount * (override.service_fee_percent / Decimal('100.0'))
-                max_fee = round_decimal(override.maximum_fee, currency=event.currency)
-
-    if max_fee is None:
-        max_fee = Decimal('0.00')
+    max_fee = Decimal('0.00')
 
     ticket_fee = round_decimal(ticket_fee, currency=event.currency)
     if max_fee and max_fee > Decimal('0.00') and ticket_fee > max_fee:
