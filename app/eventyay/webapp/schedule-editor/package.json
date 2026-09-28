@@ -68,8 +68,19 @@
     "url": "git+https://github.com/pretalx/schedule-editor.git"
   },
   "overrides": {
+    "brace-expansion@2": "^2.1.7",
+    "fast-uri": "^3.1.6",
+    "js-yaml": "^4.3.2",
+    "minimatch@10": "^10.2.6",
     "stylelint-stylus": {
       "stylelint": "$stylelint"
+    },
+    "stylus@0.57.0": {
+      ".": "0.64.0",
+      "glob": "13.0.6"
+    },
+    "stylus": {
+      "glob": "13.0.6"
     }
   }
 }

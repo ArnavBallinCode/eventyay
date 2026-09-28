@@ -48,5 +48,13 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/pretalx/schedule.git"
+  },
+  "overrides": {
+    "brace-expansion@2": "^2.1.7",
+    "minimatch@9": "^9.0.9",
+    "minimatch@10": "^10.2.6",
+    "stylus": {
+      "glob": "13.0.6"
+    }
   }
 }
