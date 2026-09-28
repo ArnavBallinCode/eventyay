@@ -115,6 +115,7 @@ class GlobalTicketingSettingsView(AdministratorPermissionRequiredMixin, FormView
         return super().form_invalid(form)
 
     def get_success_url(self):
+        return reverse('eventyay_admin:admin.global.ticketing')
 
 class MetaDataSettingsView(AdministratorPermissionRequiredMixin, View):
     def get(self, request, *args, **kwargs):
