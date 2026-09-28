@@ -1553,7 +1553,7 @@ class WidgetSettings(EventSettingsViewMixin, EventPermissionRequiredMixin, FormV
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx['urlprefix'] = settings.SITE_URL
+        ctx['urlprefix'] = settings.SITE_URL.rstrip('/')
         domain = get_event_domain(self.request.event, fallback=True)
         if domain:
             siteurlsplit = urlsplit(settings.SITE_URL)
