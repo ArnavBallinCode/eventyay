@@ -538,12 +538,6 @@ def get_admin_navigation(request):
         return []
     business_children = [
         {
-            'label': _('Business Settings'),
-            'url': reverse('eventyay_admin:admin.global.business'),
-            'active': (url.url_name == 'admin.global.business'),
-            'position': 10,
-        },
-        {
             'label': _('Event vouchers'),
             'url': reverse('eventyay_admin:admin.vouchers'),
             'active': 'voucher' in url.url_name,
@@ -598,7 +592,7 @@ def get_admin_navigation(request):
         },
         {
             'label': _('Business'),
-            'url': reverse('eventyay_admin:admin.global.business'),
+            'url': reverse('eventyay_admin:admin.vouchers'),
             'active': any(c['active'] for c in business_children),
             'icon': 'briefcase',
             'children': business_children,
@@ -775,7 +769,7 @@ def get_admin_navigation(request):
         return (100, label)
 
     for item in nav:
-        if item.get('url') == reverse('eventyay_admin:admin.global.business') and 'children' in item:
+        if item.get('url') == reverse('eventyay_admin:admin.vouchers') and 'children' in item:
             item['children'].sort(key=_business_child_sort_key)
 
     return nav

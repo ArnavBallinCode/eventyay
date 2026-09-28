@@ -29,7 +29,6 @@ from eventyay.base.services.update_check import check_result_table, update_check
 from eventyay.base.settings import GlobalSettingsObject
 from eventyay.common.sanitizers import sanitize_rich_text
 from eventyay.control.forms.global_settings import (
-    GlobalBusinessSettingsForm,
     GlobalSettingsForm,
     GlobalTicketingSettingsForm,
     SSOConfigForm,
@@ -53,7 +52,7 @@ class GlobalSettingsView(AdministratorPermissionRequiredMixin, FormView):
             return redirect(reverse('eventyay_admin:admin.vouchers'))
         if tab in ('organizer_billing', 'ticket_fee', 'billing_validation', 'business'):
             target_hash = f'#tab-{tab}' if tab in ('organizer_billing', 'ticket_fee', 'billing_validation') else ''
-            return redirect(reverse('eventyay_admin:admin.global.business') + target_hash)
+            return redirect(reverse('eventyay_admin:admin.global.settings') + target_hash)
         if tab in ('payment_gateways', 'payment-gateways', 'payment', 'gateways'):
             return redirect(reverse('eventyay_admin:admin.global.ticketing') + '#tab-payment-gateways')
         if tab in ('cart',):
@@ -116,26 +115,6 @@ class GlobalTicketingSettingsView(AdministratorPermissionRequiredMixin, FormView
         return super().form_invalid(form)
 
     def get_success_url(self):
-        return reverse('eventyay_admin:admin.global.ticketing')
-
-
-class GlobalBusinessSettingsView(AdministratorPermissionRequiredMixin, FormView):
-    template_name = 'pretixcontrol/admin/business_settings.html'
-    form_class = GlobalBusinessSettingsForm
-
-    def form_valid(self, form):
-        form.save()
-        messages.success(self.request, _('Your changes have been saved.'))
-        return super().form_valid(form)
-
-    def form_invalid(self, form):
-        messages.error(self.request, _('Your changes have not been saved, see below for errors.'))
-        return super().form_invalid(form)
-
-
-    def get_success_url(self):
-        return reverse('eventyay_admin:admin.global.business')
-
 
 class MetaDataSettingsView(AdministratorPermissionRequiredMixin, View):
     def get(self, request, *args, **kwargs):
