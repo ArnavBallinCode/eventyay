@@ -783,39 +783,7 @@ class GlobalTicketingSettingsForm(SettingsForm):
                         help_text=_('Test secret key for ticket payments via the Stripe plugin.'),
                     ),
                 ),
-                (
-                    'payment_stripe_connect_app_fee_percent',
-                    forms.DecimalField(
-                        label=_('App fee percentage'),
-                        required=False,
-                        decimal_places=2,
-                        max_digits=10,
-                        help_text=_('A percentage fee charged on each ticket payment processed through Stripe Connect.'),
-                        validators=[MinValueValidator(0), MaxValueValidator(100)],
-                    ),
-                ),
-                (
-                    'payment_stripe_connect_app_fee_min',
-                    forms.DecimalField(
-                        label=_('App fee minimum'),
-                        required=False,
-                        decimal_places=2,
-                        max_digits=10,
-                        help_text=_('Minimum fee amount charged on ticket payments.'),
-                        validators=[MinValueValidator(0)],
-                    ),
-                ),
-                (
-                    'payment_stripe_connect_app_fee_max',
-                    forms.DecimalField(
-                        label=_('App fee maximum'),
-                        required=False,
-                        decimal_places=2,
-                        max_digits=10,
-                        help_text=_('Maximum fee amount charged on ticket payments.'),
-                        validators=[MinValueValidator(0)],
-                    ),
-                ),
+
                 # PayPal
                 (
                     'payment_paypal_connect_client_id',
@@ -873,9 +841,6 @@ class GlobalTicketingSettingsForm(SettingsForm):
             'payment_stripe_connect_secret_key',
             'payment_stripe_connect_test_publishable_key',
             'payment_stripe_connect_test_secret_key',
-            'payment_stripe_connect_app_fee_percent',
-            'payment_stripe_connect_app_fee_min',
-            'payment_stripe_connect_app_fee_max',
 
             # PayPal
             'payment_paypal_connect_client_id',
