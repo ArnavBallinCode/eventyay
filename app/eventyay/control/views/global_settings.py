@@ -11,7 +11,7 @@ from django.core.validators import validate_email
 from django.db import IntegrityError, OperationalError, ProgrammingError
 from django.http import HttpRequest, HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, reverse
-from django.urls import reverse_lazy
+from django.urls import NoReverseMatch, reverse_lazy
 from django.utils.translation import gettext_lazy as _
 from django.views import View
 from django.views.generic import DeleteView, FormView, RedirectView, TemplateView
@@ -119,7 +119,11 @@ class GlobalTicketingSettingsView(AdministratorPermissionRequiredMixin, FormView
 
 
 class LegacyBusinessSettingsRedirectView(AdministratorPermissionRequiredMixin, RedirectView):
-    pattern_name = 'eventyay_admin:admin.vouchers'
+    def get_redirect_url(self, *args, **kwargs):
+        try:
+            return reverse('plugins:eventyay_business:settings')
+        except NoReverseMatch:
+            return reverse('eventyay_admin:admin.vouchers')
 
 
 class MetaDataSettingsView(AdministratorPermissionRequiredMixin, View):

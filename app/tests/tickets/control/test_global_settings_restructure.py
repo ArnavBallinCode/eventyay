@@ -4,7 +4,8 @@ from unittest.mock import patch
 
 import pytest
 from django import forms as dj_forms
-from django.urls import reverse
+from django.apps import apps
+from django.urls import NoReverseMatch, resolve, reverse
 from django.utils.timezone import now
 
 from eventyay.base.models import User
@@ -301,8 +302,29 @@ class TestGlobalTicketingSettings:
 
 @pytest.mark.django_db
 class TestLegacyUrlsAndRedirects:
-    def test_legacy_business_url_redirects_to_vouchers(self, staff_client):
-        response = staff_client.get(reverse('eventyay_admin:admin.global.business'))
+    def test_business_plugin_settings_route_renders_plugin_page(self, staff_client):
+        if not apps.is_installed('eventyay_business'):
+            pytest.skip('Business plugin is not enabled')
+        try:
+            url = reverse('plugins:eventyay_business:settings')
+        except NoReverseMatch:
+            pytest.skip('Business plugin URLs are not installed')
+
+        assert resolve(url).namespace == 'plugins:eventyay_business'
+        response = staff_client.get(url)
+        assert response.status_code == 200
+        assert b'Business Settings' in response.content
+
+    def test_legacy_business_url_redirects_to_vouchers_without_plugin(self, staff_client):
+        url = reverse('eventyay_admin:admin.global.business')
+
+        def reverse_without_business_plugin(name, *args, **kwargs):
+            if name == 'plugins:eventyay_business:settings':
+                raise NoReverseMatch(name)
+            return reverse(name, *args, **kwargs)
+
+        with patch('eventyay.control.views.global_settings.reverse', side_effect=reverse_without_business_plugin):
+            response = staff_client.get(url)
         assert response.status_code == 302
         assert response['Location'] == reverse('eventyay_admin:admin.vouchers')
 
