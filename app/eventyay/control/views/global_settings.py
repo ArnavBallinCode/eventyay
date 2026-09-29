@@ -42,6 +42,13 @@ from eventyay.control.permissions import (
 logger = logging.getLogger(__name__)
 
 
+def business_settings_url():
+    try:
+        return reverse('plugins:eventyay_business:settings')
+    except NoReverseMatch:
+        return reverse('eventyay_admin:admin.vouchers')
+
+
 class GlobalSettingsView(AdministratorPermissionRequiredMixin, FormView):
     template_name = 'pretixcontrol/global_settings.html'
     form_class = GlobalSettingsForm
@@ -52,7 +59,7 @@ class GlobalSettingsView(AdministratorPermissionRequiredMixin, FormView):
             return redirect(reverse('eventyay_admin:admin.vouchers'))
         if tab in ('organizer_billing', 'ticket_fee', 'billing_validation', 'business'):
             target_hash = f'#tab-{tab}' if tab in ('organizer_billing', 'billing_validation') else ''
-            return redirect(reverse('eventyay_admin:admin.global.settings') + target_hash)
+            return redirect(business_settings_url() + target_hash)
         if tab in ('payment_gateways', 'payment-gateways', 'payment', 'gateways'):
             return redirect(reverse('eventyay_admin:admin.global.ticketing') + '#tab-payment-gateways')
         if tab in ('cart',):
@@ -83,6 +90,7 @@ class GlobalSettingsView(AdministratorPermissionRequiredMixin, FormView):
         context['gmail_disconnect_url'] = reverse('eventyay_admin:admin.global.gmail.disconnect')
         context['test_email_feedback'] = self.request.session.pop('admin_test_email_feedback', None)
         context['test_turnstile_feedback'] = self.request.session.pop('admin_test_turnstile_feedback', None)
+        context['business_settings_url'] = business_settings_url()
         context['gs'] = GlobalSettingsObject()
         context['gs'].settings.set('update_check_ack', True)
         context['tbl'] = check_result_table()
@@ -120,10 +128,7 @@ class GlobalTicketingSettingsView(AdministratorPermissionRequiredMixin, FormView
 
 class LegacyBusinessSettingsRedirectView(AdministratorPermissionRequiredMixin, RedirectView):
     def get_redirect_url(self, *args, **kwargs):
-        try:
-            return reverse('plugins:eventyay_business:settings')
-        except NoReverseMatch:
-            return reverse('eventyay_admin:admin.vouchers')
+        return business_settings_url()
 
 
 class MetaDataSettingsView(AdministratorPermissionRequiredMixin, View):

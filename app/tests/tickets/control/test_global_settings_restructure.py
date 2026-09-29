@@ -78,6 +78,10 @@ class TestGlobalSettingsTabsAndSections:
         assert 'id="tab-etherpad"' in content
         assert 'id="tab-voxbento"' in content
         assert 'id="tab-hubspot"' in content
+        if apps.is_installed('eventyay_business'):
+            assert f'data-business-redirect-url="{reverse("plugins:eventyay_business:settings")}"' in content
+        else:
+            assert f'data-business-redirect-url="{reverse("eventyay_admin:admin.vouchers")}"' in content
 
         # Check Meta data content
         assert 'seo_homepage_title' in content
@@ -325,6 +329,38 @@ class TestLegacyUrlsAndRedirects:
 
         with patch('eventyay.control.views.global_settings.reverse', side_effect=reverse_without_business_plugin):
             response = staff_client.get(url)
+        assert response.status_code == 302
+        assert response['Location'] == reverse('eventyay_admin:admin.vouchers')
+
+    @pytest.mark.parametrize(
+        ('tab', 'fragment'),
+        [
+            ('organizer_billing', '#tab-organizer_billing'),
+            ('billing_validation', '#tab-billing_validation'),
+            ('ticket_fee', ''),
+        ],
+    )
+    def test_legacy_business_tab_redirects_to_plugin(self, staff_client, tab, fragment):
+        business_url = '/admin/global/business/settings/'
+
+        def reverse_with_business_plugin(name, *args, **kwargs):
+            if name == 'plugins:eventyay_business:settings':
+                return business_url
+            return reverse(name, *args, **kwargs)
+
+        with patch('eventyay.control.views.global_settings.reverse', side_effect=reverse_with_business_plugin):
+            response = staff_client.get(reverse('eventyay_admin:admin.global.settings'), {'tab': tab})
+        assert response.status_code == 302
+        assert response['Location'] == business_url + fragment
+
+    def test_legacy_business_tab_falls_back_to_vouchers_without_plugin(self, staff_client):
+        def reverse_without_business_plugin(name, *args, **kwargs):
+            if name == 'plugins:eventyay_business:settings':
+                raise NoReverseMatch(name)
+            return reverse(name, *args, **kwargs)
+
+        with patch('eventyay.control.views.global_settings.reverse', side_effect=reverse_without_business_plugin):
+            response = staff_client.get(reverse('eventyay_admin:admin.global.settings'), {'tab': 'ticket_fee'})
         assert response.status_code == 302
         assert response['Location'] == reverse('eventyay_admin:admin.vouchers')
 
