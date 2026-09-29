@@ -73,8 +73,6 @@ class GlobalSettingsForm(SettingsForm):
         Load default email setting form .cfg file if not set
         """
         global_settings = self.obj.settings
-        if global_settings.get('billing_validation') is None:
-            global_settings.set('billing_validation', True)
         if global_settings.get(EVENT_SERIES_CREATION_ENABLED) is None:
             global_settings.set(EVENT_SERIES_CREATION_ENABLED, True)
         if global_settings.get(MEETUP_CREATION_ENABLED) is None:

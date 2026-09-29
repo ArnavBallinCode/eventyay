@@ -1,9 +1,10 @@
 import pytest
-from django.urls import resolve
+from django.urls import resolve, reverse
 from django.utils.timezone import now
 
 from eventyay.base.models import Event, Organizer, Team, User
 from eventyay.control.navigation import get_admin_navigation, get_event_navigation
+from eventyay.control.signals import nav_global
 
 
 @pytest.fixture
@@ -155,8 +156,34 @@ def test_banktransfer_only_navigation_shows_import_export(event, rf):
 
     assert orders_nav is not None
     assert any(str(child.get('label')) == 'Import / Export' for child in orders_nav.get('children', []))
-    assert not any(str(child.get('label')) == 'Overview' for child in orders_nav.get('children', []))
-    assert not any(str(child.get('label')) == 'All orders' for child in orders_nav.get('children', []))
+    assert 'can_view_orders' in request.eventpermset
+    assert any(str(child.get('label')) == 'Overview' for child in orders_nav.get('children', []))
+    assert any(str(child.get('label')) == 'All orders' for child in orders_nav.get('children', []))
+
+
+@pytest.mark.django_db
+def test_legacy_plugin_business_navigation_stays_under_business(rf):
+    user = User.objects.create_user('legacy-plugin@example.com', 'dummy', is_staff=True)
+    request = rf.get('/admin/vouchers/')
+    request.user = user
+    request.session = type('DummySession', (), {'session_key': 'test'})()
+    request.resolver_match = resolve('/admin/vouchers/')
+
+    def legacy_business_nav(sender, **kwargs):
+        return [{
+            'label': 'Legacy plugin settings',
+            'url': '/legacy-business-settings/',
+            'parent': reverse('eventyay_admin:admin.global.business'),
+        }]
+
+    nav_global.connect(legacy_business_nav, dispatch_uid='test_legacy_business_nav')
+    try:
+        nav = get_admin_navigation(request)
+    finally:
+        nav_global.disconnect(dispatch_uid='test_legacy_business_nav')
+
+    business_nav = next(item for item in nav if str(item.get('label')) == 'Business')
+    assert any(str(child.get('label')) == 'Legacy plugin settings' for child in business_nav['children'])
 
 
 @pytest.mark.django_db

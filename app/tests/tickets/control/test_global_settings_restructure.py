@@ -49,6 +49,7 @@ class TestGlobalSettingsTabsAndSections:
             'update-check',
             'maps',
             'etherpad',
+            'security',
             'voxbento',
             'hubspot',
         ]
@@ -102,12 +103,16 @@ class TestGlobalSettingsTabsAndSections:
 
     def test_settings_save_behavior(self, staff_client):
         url = reverse('eventyay_admin:admin.global.settings')
+        gs = GlobalSettingsObject()
+        gs.settings.set('billing_validation', False)
+        gs.settings.set('payment_stripe_secret_key', 'sk_live_keep_me')
         post_data = {
             'region': 'DE',
             'mail_from': 'noreply@example.com',
             'email_vendor': 'smtp',
             'smtp_host': 'smtp.example.com',
             'smtp_port': '587',
+            'anti_abuse_provider': 'disabled',
             'allow_all_users_create_organizer': 'on',
             'allow_payment_users_create_organizer': 'on',
             'event_series_creation_enabled': 'on',
@@ -122,7 +127,6 @@ class TestGlobalSettingsTabsAndSections:
         assert response.status_code == 302, (response.context['form'].errors if response.context and 'form' in response.context else response.content)
         assert response['Location'] == reverse('eventyay_admin:admin.global.settings')
 
-        gs = GlobalSettingsObject()
         assert gs.settings.get('seo_homepage_title') == 'My Platform Title'
         assert gs.settings.get('seo_homepage_description') == 'My Platform Description'
         assert gs.settings.get('allow_all_users_create_organizer', as_type=bool) is True
@@ -132,6 +136,8 @@ class TestGlobalSettingsTabsAndSections:
         assert gs.settings.get('update_check_perform', as_type=bool) is True
         assert gs.settings.get('update_check_email') == 'updates@example.com'
         assert gs.settings.get('telemetry_enabled', as_type=bool) is True
+        assert gs.settings.get('billing_validation', as_type=bool) is False
+        assert gs.settings.get('payment_stripe_secret_key') == 'sk_live_keep_me'
 
     @patch('eventyay.control.views.global_settings.update_check.apply')
     def test_update_check_trigger_in_settings(self, mock_update_check, staff_client):
@@ -158,6 +164,7 @@ class TestGlobalSettingsTabsAndSections:
                 'email_vendor': 'smtp',
                 'smtp_host': 'smtp.example.com',
                 'smtp_port': '587',
+                'anti_abuse_provider': 'disabled',
             }
             form_files = {
                 'seo_social_image': uploaded_file,
@@ -294,6 +301,11 @@ class TestGlobalTicketingSettings:
 
 @pytest.mark.django_db
 class TestLegacyUrlsAndRedirects:
+    def test_legacy_business_url_redirects_to_vouchers(self, staff_client):
+        response = staff_client.get(reverse('eventyay_admin:admin.global.business'))
+        assert response.status_code == 302
+        assert response['Location'] == reverse('eventyay_admin:admin.vouchers')
+
     def test_legacy_metadata_url_redirects_to_settings_tab(self, staff_client):
         url = reverse('eventyay_admin:admin.global.metadata')
         response = staff_client.get(url)
@@ -346,7 +358,6 @@ class TestPluginProvidedPaymentSettingsRegression:
         def custom_payment_receiver(sender, **kwargs):
             return OrderedDict([
                 ('payment_customplugin_api_key', dj_forms.CharField(label='Custom Plugin API Key', required=False)),
-                ('customplugin_general_setting', dj_forms.CharField(label='General Plugin Setting', required=False)),
             ])
 
         register_global_settings.connect(custom_payment_receiver, dispatch_uid='test_custom_payment_receiver')
@@ -354,14 +365,12 @@ class TestPluginProvidedPaymentSettingsRegression:
             # GlobalTicketingSettingsForm must collect payment_customplugin_api_key
             ticketing_form = GlobalTicketingSettingsForm()
             assert 'payment_customplugin_api_key' in ticketing_form.fields
-            assert 'customplugin_general_setting' not in ticketing_form.fields
 
             payment_group = next(g for g in ticketing_form.field_groups if g[0] == 'payment-gateways')
             assert 'payment_customplugin_api_key' in payment_group[2]
 
-            # GlobalSettingsForm must collect customplugin_general_setting and NOT payment_customplugin_api_key
+            # Payment plugin fields belong only to the ticketing form.
             settings_form = GlobalSettingsForm()
-            assert 'customplugin_general_setting' in settings_form.fields
             assert 'payment_customplugin_api_key' not in settings_form.fields
 
             # Verify saving via GlobalTicketingSettingsForm persists the value

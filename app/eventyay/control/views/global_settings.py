@@ -14,7 +14,7 @@ from django.shortcuts import get_object_or_404, redirect, reverse
 from django.urls import reverse_lazy
 from django.utils.translation import gettext_lazy as _
 from django.views import View
-from django.views.generic import DeleteView, FormView, TemplateView
+from django.views.generic import DeleteView, FormView, RedirectView, TemplateView
 from python_http_client.exceptions import HTTPError
 
 from eventyay.api.models import OAuthApplication
@@ -51,7 +51,7 @@ class GlobalSettingsView(AdministratorPermissionRequiredMixin, FormView):
         if tab in ('vouchers', 'event_vouchers'):
             return redirect(reverse('eventyay_admin:admin.vouchers'))
         if tab in ('organizer_billing', 'ticket_fee', 'billing_validation', 'business'):
-            target_hash = f'#tab-{tab}' if tab in ('organizer_billing', 'ticket_fee', 'billing_validation') else ''
+            target_hash = f'#tab-{tab}' if tab in ('organizer_billing', 'billing_validation') else ''
             return redirect(reverse('eventyay_admin:admin.global.settings') + target_hash)
         if tab in ('payment_gateways', 'payment-gateways', 'payment', 'gateways'):
             return redirect(reverse('eventyay_admin:admin.global.ticketing') + '#tab-payment-gateways')
@@ -116,6 +116,11 @@ class GlobalTicketingSettingsView(AdministratorPermissionRequiredMixin, FormView
 
     def get_success_url(self):
         return reverse('eventyay_admin:admin.global.ticketing')
+
+
+class LegacyBusinessSettingsRedirectView(AdministratorPermissionRequiredMixin, RedirectView):
+    pattern_name = 'eventyay_admin:admin.vouchers'
+
 
 class MetaDataSettingsView(AdministratorPermissionRequiredMixin, View):
     def get(self, request, *args, **kwargs):
@@ -801,6 +806,12 @@ class RevealSecretSettingView(View):
         'stripe_webhook_secret_key',
     })
 
+    GLOBAL_ONLY_KEYS: frozenset[str] = frozenset({
+        'payment_stripe_secret_key',
+        'payment_stripe_test_secret_key',
+        'stripe_webhook_secret_key',
+    })
+
     def post(self, request, *args, **kwargs):
         if not request.user.is_authenticated:
             return JsonResponse({'error': 'forbidden', 'detail': 'Authentication required.'}, status=403)
@@ -823,6 +834,8 @@ class RevealSecretSettingView(View):
                 return JsonResponse({'error': 'forbidden', 'detail': 'Administrator access required.'}, status=403)
             gs = GlobalSettingsObject()
         elif scope == 'organizer':
+            if key in self.GLOBAL_ONLY_KEYS:
+                return JsonResponse({'error': 'forbidden', 'detail': 'Key not allowed for organizer scope.'}, status=403)
             organizer_slug = request.POST.get('organizer', '')
             if not organizer_slug:
                 return JsonResponse({'error': 'forbidden', 'detail': 'Organizer slug required.'}, status=403)
