@@ -15,6 +15,7 @@
         <div class="tabbed-form">
             <fieldset id="tab-payment-gateways">
                 <legend>{% translate "Payment Gateways" %}</legend>
+                {% if form.payment_stripe_connect_client_id %}
                 <fieldset class="payment-gateway-section">
                     <legend>{% translate "Stripe — Ticket Payments" %}</legend>
                     <p class="help-block">
@@ -39,6 +40,7 @@
                     </div>
 
                 </fieldset>
+                {% endif %}
 
                 <fieldset class="payment-gateway-section">
                     <legend>{% translate "PayPal — Ticket Payments" %}</legend>
