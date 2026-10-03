@@ -1323,7 +1323,7 @@ a.event-public-text-link:visited {
 
   body.is-printing-fullscreen .header,
   body.is-printing-fullscreen .event-hero,
-  body.is-printing-fullscreen .header-tabs,
+  body.is-printing-fullscreen #header-tabs,
   body.is-printing-fullscreen .footer,
   body.is-printing-fullscreen footer,
   body.is-printing-fullscreen #event-nonpublic,
