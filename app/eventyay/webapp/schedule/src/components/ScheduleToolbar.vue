@@ -793,7 +793,7 @@ export default {
 			if (this.$refs.densityDropdown && !path.includes(this.$refs.densityDropdown)) {
 				this.densityOpen = false
 			}
-			if (this.searchExpanded && this.$refs.searchArea && !path.includes(this.$refs.searchArea)) {
+			if (this.searchExpanded && this.$refs.searchArea && !path.includes(this.$refs.searchArea) && !this.eventTargetsStarToggle(path)) {
 				this.closeSearch()
 			}
 			if (!path.includes(this.$el)) {
@@ -1041,6 +1041,13 @@ export default {
 		closeSearch() {
 			this.searchExpanded = false
 			this.$emit('update:searchQuery', '')
+		},
+		eventTargetsStarToggle(path) {
+			return path.some(node => {
+				const classList = node?.classList
+				if (!classList) return false
+				return classList.contains('fav-button') || classList.contains('btn-fav-container')
+			})
 		}
 	}
 }
