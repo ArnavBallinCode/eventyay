@@ -323,7 +323,7 @@
 							role="menuitemradio",
 							:aria-checked="timeDensityMinutes === opt.value ? 'true' : 'false'",
 							@click="selectTimeDensity(opt.value)") {{ opt.label }}
-				button.toolbar-btn.icon-only(v-if="showPrint", @click="printSchedule", :aria-label="t.print")
+				button.toolbar-btn.icon-only.print-btn(v-if="showPrint", @click="printSchedule", :aria-label="t.print")
 					svg.tb-icon(viewBox="0 0 24 24", fill="none", stroke="currentColor", stroke-width="2")
 						polyline(points="6 9 6 2 18 2 18 9")
 						path(d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2")
@@ -2096,6 +2096,26 @@ export default {
 				stroke: currentColor
 				color: inherit
 				fill: none
+
+@media (min-width: 1025px)
+	.c-schedule-toolbar .toolbar-right
+		.toolbar-right-quick,
+		.toolbar-secondary
+			display: contents
+		.search-area
+			order: 10
+		.timezone-area
+			order: 20
+		.version-area
+			order: 30
+		.print-btn
+			order: 40
+		.exporter-area
+			order: 50
+		.density-area
+			order: 60
+		.fullscreen-desktop
+			order: 70
 
 @media print
 	.c-schedule-toolbar
