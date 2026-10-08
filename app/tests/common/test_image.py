@@ -1,5 +1,6 @@
-import pytest
 from unittest import mock
+
+import pytest
 from io import BytesIO
 
 from django.core.exceptions import ValidationError
@@ -7,6 +8,7 @@ from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import IntegrityError
+from PIL import Image
 
 from eventyay.helpers.models import Thumbnail
 from eventyay.helpers.thumb import create_thumbnail as create_legacy_thumbnail
@@ -91,8 +93,6 @@ def test_validate_image_webp():
 
 @pytest.mark.django_db
 def test_legacy_thumbnail_replaces_png_with_webp():
-    from PIL import Image
-
     image = Image.new('RGB', (800, 600), 'red')
     image_bytes = BytesIO()
     image.save(image_bytes, format='PNG')
@@ -121,8 +121,6 @@ def test_legacy_thumbnail_is_retained_when_refresh_fails():
 
 @pytest.mark.django_db
 def test_create_thumbnail_returns_concurrent_thumbnail(tmp_path):
-    from PIL import Image
-
     image = Image.new('RGB', (10, 10), 'red')
     image_bytes = BytesIO()
     image.save(image_bytes, format='PNG')

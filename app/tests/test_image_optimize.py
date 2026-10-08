@@ -6,7 +6,6 @@ from PIL import Image
 
 from eventyay.helpers.image_optimize import (
     MAX_WIDTH,
-    MAX_OPTIMIZED_IMAGE_PIXELS,
     OptimizedImages,
     optimize_question_image,
     optimize_uploaded_image,
@@ -165,21 +164,6 @@ def test_optimize_uploaded_image_invalid_image():
         content_type='image/jpeg',
     )
     with pytest.raises(OSError):
-        optimize_uploaded_image(upload, 'logo_image')
-
-
-def test_optimize_uploaded_image_rejects_large_image_before_loading(monkeypatch):
-    class LargeImage:
-        width = MAX_OPTIMIZED_IMAGE_PIXELS + 1
-        height = 1
-
-        def load(self):
-            raise AssertionError('large image must not be decoded')
-
-    monkeypatch.setattr('eventyay.helpers.image_optimize.Image.open', lambda _: LargeImage())
-    upload = SimpleUploadedFile('test.jpg', b'image', content_type='image/jpeg')
-
-    with pytest.raises(ValueError, match='maximum safe dimensions'):
         optimize_uploaded_image(upload, 'logo_image')
 
 

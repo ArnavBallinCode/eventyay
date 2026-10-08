@@ -98,11 +98,12 @@ def create_thumbnail_file(sourcename, size):
 def create_thumbnail(sourcename, size):
     name, content = create_thumbnail_file(sourcename, size)
     try:
-        thumbnail = Thumbnail.objects.create(source=sourcename, size=size)
+        with transaction.atomic():
+            thumbnail = Thumbnail.objects.create(source=sourcename, size=size)
+            thumbnail.thumb.save(name, content, save=False)
+            thumbnail.save(update_fields=['thumb'])
     except IntegrityError:
         return Thumbnail.objects.get(source=sourcename, size=size)
-
-    thumbnail.thumb.save(name, content)
     return thumbnail
 
 

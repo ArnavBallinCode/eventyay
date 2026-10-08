@@ -36,8 +36,6 @@ from eventyay.common.image import encode_optimized
 
 logger = logging.getLogger(__name__)
 
-MAX_OPTIMIZED_IMAGE_PIXELS = 25_000_000
-
 QUESTION_IMAGE_EXTENSIONS = frozenset(
     {'.bmp', '.gif', '.heic', '.heif', '.jfif', '.jpeg', '.jpg', '.png', '.tif', '.tiff', '.webp'}
 )
@@ -120,8 +118,6 @@ def optimize_uploaded_image(
         with warnings.catch_warnings():
             warnings.simplefilter('error', DecompressionBombWarning)
             image = Image.open(BytesIO(raw))
-            if image.width * image.height > MAX_OPTIMIZED_IMAGE_PIXELS:
-                raise ValueError('Image exceeds maximum safe dimensions')
             image.load()
     except (DecompressionBombError, DecompressionBombWarning) as e:
         logger.exception('Image too large to load (DecompressionBombError)')
