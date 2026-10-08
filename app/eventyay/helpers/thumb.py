@@ -88,11 +88,11 @@ def create_thumbnail(sourcename, size):
         image = image.crop(crop)
 
     checksum = hashlib.md5(image.tobytes()).hexdigest()
-    name = checksum + '.' + size.replace('^', 'c') + '.png'
+    name = checksum + '.' + size.replace('^', 'c') + '.webp'
     buffer = BytesIO()
-    if image.mode not in ('1', 'L', 'RGB', 'RGBA'):
+    if image.mode not in ('RGB', 'RGBA'):
         image = image.convert('RGB')
-    image.save(fp=buffer, format='PNG')
+    image.save(fp=buffer, format='WEBP', quality=80)
     imgfile = ContentFile(buffer.getvalue())
 
     t = Thumbnail.objects.create(source=sourcename, size=size)
@@ -103,6 +103,13 @@ def create_thumbnail(sourcename, size):
 def get_thumbnail(source, size):
     # Assumes files are immutable
     try:
-        return Thumbnail.objects.get(source=source, size=size)
+        thumbnail = Thumbnail.objects.get(source=source, size=size)
     except Thumbnail.DoesNotExist:
         return create_thumbnail(source, size)
+
+    if not str(source).lower().endswith('.svg') and not thumbnail.thumb.name.lower().endswith('.webp'):
+        thumbnail.thumb.delete(save=False)
+        thumbnail.delete()
+        return create_thumbnail(source, size)
+
+    return thumbnail

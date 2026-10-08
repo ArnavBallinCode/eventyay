@@ -2,7 +2,12 @@ import pytest
 from io import BytesIO
 
 from django.core.exceptions import ValidationError
+from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
 from django.core.files.uploadedfile import SimpleUploadedFile
+
+from eventyay.helpers.models import Thumbnail
+from eventyay.helpers.thumb import get_thumbnail as get_legacy_thumbnail
 
 from eventyay.common.image import (
     ALLOWED_IMAGE_EXTENSIONS,
@@ -79,6 +84,24 @@ def test_validate_image_webp():
         content_type='image/webp',
     )
     validate_image(upload)
+
+
+@pytest.mark.django_db
+def test_legacy_thumbnail_replaces_png_with_webp():
+    from PIL import Image
+
+    image = Image.new('RGB', (800, 600), 'red')
+    image_bytes = BytesIO()
+    image.save(image_bytes, format='PNG')
+    source = default_storage.save('test-images/start-page.png', ContentFile(image_bytes.getvalue()))
+
+    legacy_thumbnail = Thumbnail.objects.create(source=source, size='400x225^')
+    legacy_thumbnail.thumb.save('legacy.400x225c.png', ContentFile(image_bytes.getvalue()))
+
+    thumbnail = get_legacy_thumbnail(source, '400x225^')
+
+    assert thumbnail.thumb.name.endswith('.webp')
+    assert Image.open(thumbnail.thumb).format == 'WEBP'
 
 class DummyField:
     def __init__(self, name):

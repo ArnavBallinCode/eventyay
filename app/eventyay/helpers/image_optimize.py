@@ -48,6 +48,7 @@ MAX_WIDTH: dict[str, int] = {
     'profile_picture': 1000,     # user profile picture
     'avatar': 1000,              # speaker avatar
     'image': 1920,               # submission image
+    'question_file': 1920,       # custom-question image attachment
 }
 
 class OptimizedImages(NamedTuple):

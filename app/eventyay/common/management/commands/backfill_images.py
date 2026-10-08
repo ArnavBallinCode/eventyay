@@ -20,17 +20,34 @@ from django.core.files.storage import default_storage
 from django.utils import timezone
 from django_scopes import scopes_disabled
 
-from eventyay.base.models import Submission, User, Product, Room, Event_SettingsStore, Organizer_SettingsStore
+from eventyay.base.models import (
+    Answer,
+    Event,
+    Event_SettingsStore,
+    Organizer_SettingsStore,
+    Product,
+    Room,
+    Submission,
+    User,
+)
 from eventyay.common.image import invalidate_speaker_avatar_caches, is_svg_filename, process_image
 
 logger = logging.getLogger(__name__)
 
 IMAGE_TARGETS = {
     'user': (User, 'avatar', True),
+    'profile_picture': (User, 'profile_picture', False),
     'submission': (Submission, 'image', False),
     'product': (Product, 'picture', False),
     'room': (Room, 'picture', False),
+    'event_logo': (Event, 'logo', False),
+    'event_header_image': (Event, 'header_image', False),
+    'question_answer': (Answer, 'answer_file', False, True),
 }
+
+RASTER_IMAGE_EXTENSIONS = frozenset({
+    '.bmp', '.gif', '.heic', '.heif', '.jfif', '.jpeg', '.jpg', '.png', '.tif', '.tiff', '.webp',
+})
 
 SETTINGS_KEYS = [
     'logo_image',
@@ -128,8 +145,12 @@ class Command(BaseCommand):
         min_bytes = min_size_kb * 1024
         stats = {'compressed': 0, 'failed': 0, 'skipped': 0, 'dry_run': 0}
 
-        def process_image_field(image, model_name, pk, generate_thumbnail):
+        def process_image_field(image, model_name, pk, generate_thumbnail, raster_only=False):
             if not image or not image.name or is_svg_filename(image.name):
+                stats['skipped'] += 1
+                return
+
+            if raster_only and os.path.splitext(image.name)[1].lower() not in RASTER_IMAGE_EXTENSIONS:
                 stats['skipped'] += 1
                 return
 
@@ -187,13 +208,21 @@ class Command(BaseCommand):
 
         with scopes_disabled():
             # 1. Process regular models
-            for model_key, (model, field_name, generate_thumbnail) in IMAGE_TARGETS.items():
+            for model_key, target in IMAGE_TARGETS.items():
                 if model_key not in models_to_process:
                     continue
+                model, field_name, generate_thumbnail, *target_options = target
+                raster_only = bool(target_options and target_options[0])
                 queryset = model.objects.exclude(**{f'{field_name}__isnull': True}).exclude(**{field_name: ''})
                 for instance in queryset.iterator(chunk_size=200):
                     image = getattr(instance, field_name)
-                    success = process_image_field(image, model.__name__, instance.pk, generate_thumbnail)
+                    success = process_image_field(
+                        image,
+                        model.__name__,
+                        instance.pk,
+                        generate_thumbnail,
+                        raster_only,
+                    )
                     if success and model is User:
                         invalidate_speaker_avatar_caches(instance)
                         
