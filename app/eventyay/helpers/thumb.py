@@ -3,6 +3,7 @@ from io import BytesIO
 
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
+from django.db import IntegrityError, transaction
 from PIL import Image, ImageOps
 from PIL.Image import Resampling
 
@@ -59,7 +60,7 @@ def get_sizes(size, imgsize):
             return (int(imgsize[0] * hfactor), size[1]), None
 
 
-def create_thumbnail(sourcename, size):
+def create_thumbnail_file(sourcename, size):
     if str(sourcename).lower().endswith('.svg'):
         source = default_storage.open(sourcename)
         content = source.read()
@@ -67,9 +68,7 @@ def create_thumbnail(sourcename, size):
         checksum = hashlib.md5(content).hexdigest()
         name = checksum + '.' + size.replace('^', 'c') + '.svg'
         
-        t = Thumbnail.objects.create(source=sourcename, size=size)
-        t.thumb.save(name, ContentFile(content))
-        return t
+        return name, ContentFile(content)
 
     source = default_storage.open(sourcename)
     image = Image.open(BytesIO(source.read()))
@@ -93,11 +92,33 @@ def create_thumbnail(sourcename, size):
     if image.mode not in ('RGB', 'RGBA'):
         image = image.convert('RGB')
     image.save(fp=buffer, format='WEBP', quality=80)
-    imgfile = ContentFile(buffer.getvalue())
+    return name, ContentFile(buffer.getvalue())
 
-    t = Thumbnail.objects.create(source=sourcename, size=size)
-    t.thumb.save(name, imgfile)
-    return t
+
+def create_thumbnail(sourcename, size):
+    name, content = create_thumbnail_file(sourcename, size)
+    try:
+        thumbnail = Thumbnail.objects.create(source=sourcename, size=size)
+    except IntegrityError:
+        return Thumbnail.objects.get(source=sourcename, size=size)
+
+    thumbnail.thumb.save(name, content)
+    return thumbnail
+
+
+def refresh_legacy_thumbnail(source, size):
+    with transaction.atomic():
+        thumbnail = Thumbnail.objects.select_for_update().get(source=source, size=size)
+        if thumbnail.thumb.name.lower().endswith('.webp'):
+            return thumbnail
+
+        name, content = create_thumbnail_file(source, size)
+        old_name = thumbnail.thumb.name
+        storage = thumbnail.thumb.storage
+        thumbnail.thumb.save(name, content, save=False)
+        thumbnail.save(update_fields=['thumb'])
+        transaction.on_commit(lambda: storage.delete(old_name))
+        return thumbnail
 
 
 def get_thumbnail(source, size):
@@ -108,8 +129,6 @@ def get_thumbnail(source, size):
         return create_thumbnail(source, size)
 
     if not str(source).lower().endswith('.svg') and not thumbnail.thumb.name.lower().endswith('.webp'):
-        thumbnail.thumb.delete(save=False)
-        thumbnail.delete()
-        return create_thumbnail(source, size)
+        return refresh_legacy_thumbnail(source, size)
 
     return thumbnail

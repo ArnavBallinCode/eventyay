@@ -1,12 +1,15 @@
 import pytest
+from unittest import mock
 from io import BytesIO
 
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.db import IntegrityError
 
 from eventyay.helpers.models import Thumbnail
+from eventyay.helpers.thumb import create_thumbnail as create_legacy_thumbnail
 from eventyay.helpers.thumb import get_thumbnail as get_legacy_thumbnail
 
 from eventyay.common.image import (
@@ -102,6 +105,35 @@ def test_legacy_thumbnail_replaces_png_with_webp():
 
     assert thumbnail.thumb.name.endswith('.webp')
     assert Image.open(thumbnail.thumb).format == 'WEBP'
+
+
+@pytest.mark.django_db
+def test_legacy_thumbnail_is_retained_when_refresh_fails():
+    legacy_thumbnail = Thumbnail.objects.create(source='missing-source.png', size='400x225^')
+    legacy_thumbnail.thumb.save('legacy.400x225c.png', ContentFile(b'legacy'))
+
+    with pytest.raises(FileNotFoundError):
+        get_legacy_thumbnail('missing-source.png', '400x225^')
+
+    legacy_thumbnail.refresh_from_db()
+    assert legacy_thumbnail.thumb.name.endswith('.png')
+
+
+@pytest.mark.django_db
+def test_create_thumbnail_returns_concurrent_thumbnail(tmp_path):
+    from PIL import Image
+
+    image = Image.new('RGB', (10, 10), 'red')
+    image_bytes = BytesIO()
+    image.save(image_bytes, format='PNG')
+    source = default_storage.save('test-images/concurrent.png', ContentFile(image_bytes.getvalue()))
+    expected_thumbnail = Thumbnail(source=source, size='400x225^')
+
+    with (
+        mock.patch.object(Thumbnail.objects, 'create', side_effect=IntegrityError),
+        mock.patch.object(Thumbnail.objects, 'get', return_value=expected_thumbnail),
+    ):
+        assert create_legacy_thumbnail(source, '400x225^') is expected_thumbnail
 
 class DummyField:
     def __init__(self, name):

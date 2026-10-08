@@ -23,9 +23,11 @@ import logging
 import os
 import warnings
 from io import BytesIO
+from pathlib import Path
 from typing import NamedTuple
 
 from django.core.files.base import ContentFile
+from django.core.files import File
 from django.core.files.uploadedfile import UploadedFile
 from PIL import Image, ImageOps
 from PIL.Image import DecompressionBombError, DecompressionBombWarning
@@ -33,6 +35,12 @@ from PIL.Image import DecompressionBombError, DecompressionBombWarning
 from eventyay.common.image import encode_optimized
 
 logger = logging.getLogger(__name__)
+
+MAX_OPTIMIZED_IMAGE_PIXELS = 25_000_000
+
+QUESTION_IMAGE_EXTENSIONS = frozenset(
+    {'.bmp', '.gif', '.heic', '.heif', '.jfif', '.jpeg', '.jpg', '.png', '.tif', '.tiff', '.webp'}
+)
 
 # Maximum output width per asset type.  Height is always proportional.
 MAX_WIDTH: dict[str, int] = {
@@ -112,6 +120,8 @@ def optimize_uploaded_image(
         with warnings.catch_warnings():
             warnings.simplefilter('error', DecompressionBombWarning)
             image = Image.open(BytesIO(raw))
+            if image.width * image.height > MAX_OPTIMIZED_IMAGE_PIXELS:
+                raise ValueError('Image exceeds maximum safe dimensions')
             image.load()
     except (DecompressionBombError, DecompressionBombWarning) as e:
         logger.exception('Image too large to load (DecompressionBombError)')
@@ -168,3 +178,19 @@ def optimize_uploaded_image(
         optimized_ext=optimized_ext,
         original_ext=original_ext,
     )
+
+
+def optimize_question_image(upload: File) -> File:
+    """Return an optimized raster custom-question upload when possible."""
+    filename = upload.name or 'upload'
+    if Path(filename).suffix.lower() not in QUESTION_IMAGE_EXTENSIONS:
+        return upload
+
+    try:
+        result = optimize_uploaded_image(upload, 'question_file')
+    except (OSError, ValueError):
+        logger.exception('Failed to optimize custom-question image %s', filename)
+        return upload
+
+    result.optimized.name = f'{Path(filename).stem}.{result.optimized_ext}'
+    return result.optimized

@@ -6,7 +6,9 @@ from PIL import Image
 
 from eventyay.helpers.image_optimize import (
     MAX_WIDTH,
+    MAX_OPTIMIZED_IMAGE_PIXELS,
     OptimizedImages,
+    optimize_question_image,
     optimize_uploaded_image,
 )
 
@@ -164,6 +166,37 @@ def test_optimize_uploaded_image_invalid_image():
     )
     with pytest.raises(OSError):
         optimize_uploaded_image(upload, 'logo_image')
+
+
+def test_optimize_uploaded_image_rejects_large_image_before_loading(monkeypatch):
+    class LargeImage:
+        width = MAX_OPTIMIZED_IMAGE_PIXELS + 1
+        height = 1
+
+        def load(self):
+            raise AssertionError('large image must not be decoded')
+
+    monkeypatch.setattr('eventyay.helpers.image_optimize.Image.open', lambda _: LargeImage())
+    upload = SimpleUploadedFile('test.jpg', b'image', content_type='image/jpeg')
+
+    with pytest.raises(ValueError, match='maximum safe dimensions'):
+        optimize_uploaded_image(upload, 'logo_image')
+
+
+def test_optimize_question_image_converts_raster_upload_to_webp():
+    upload = _create_test_image(2000, 1000, format='PNG')
+    upload.name = 'speaker.png'
+
+    optimized = optimize_question_image(upload)
+
+    assert optimized.name == 'speaker.webp'
+    assert Image.open(optimized).format == 'WEBP'
+
+
+def test_optimize_question_image_preserves_document_upload():
+    upload = SimpleUploadedFile('slides.pdf', b'%PDF-1.7', content_type='application/pdf')
+
+    assert optimize_question_image(upload) is upload
 
 
 def test_optimize_uploaded_image_preserves_animated_gif():
