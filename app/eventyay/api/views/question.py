@@ -241,6 +241,9 @@ class AnswerViewSet(PretalxViewSetMixin, viewsets.ModelViewSet):
             person=serializer.validated_data.get("person"),
             defaults=defaults,
         )
+        if "answer_file" in serializer.validated_data and answer.answer_file:
+            answer.answer = f"file://{answer.answer_file.name}"
+            answer.save(update_fields=["answer"])
         options = serializer.validated_data.get("options")
         if options is not None:
             answer.options.set(options)
