@@ -8,3 +8,5 @@ def test_backfill_includes_remaining_image_fields():
     assert IMAGE_TARGETS['event_header_image'][1] == 'header_image'
     assert IMAGE_TARGETS['question_answer'][1] == 'answer_file'
     assert IMAGE_TARGETS['question_answer'][3] is True
+    assert IMAGE_TARGETS['ticket_question_answer'][1] == 'file'
+    assert IMAGE_TARGETS['ticket_question_answer'][3] is True

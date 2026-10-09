@@ -28,6 +28,7 @@ from eventyay.base.models import (
     Event_SettingsStore,
     Organizer_SettingsStore,
     Product,
+    QuestionAnswer,
     Room,
     Submission,
     User,
@@ -46,6 +47,7 @@ IMAGE_TARGETS = {
     'event_logo': (Event, 'logo', False),
     'event_header_image': (Event, 'header_image', False),
     'question_answer': (Answer, 'answer_file', False, True),
+    'ticket_question_answer': (QuestionAnswer, 'file', False, True),
 }
 
 SETTINGS_KEYS = [
