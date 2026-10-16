@@ -146,7 +146,7 @@ $(document).ready(function () {
                 return response.json();
             }).then(data => {
                 notification.style.display = 'block';
-                notification.innerText = 'Payment information saved successfully.';
+                notification.innerText = 'Payment information saved and automatic payments enabled.';
                 notification.style.color = 'green';
                 window.location.reload()
             })

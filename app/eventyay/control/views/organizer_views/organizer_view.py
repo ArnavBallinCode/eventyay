@@ -31,6 +31,7 @@ from eventyay.base.settings import (
     is_event_series_creation_enabled,
     is_meetup_creation_enabled,
 )
+from eventyay.base.signals import organizer_billing_payment_method_saved
 from eventyay.common.text.path import resolve_media_path
 from eventyay.control.forms.filter import EventFilterForm, OrganizerFilterForm, advanced_filters_open_from_get
 from eventyay.control.forms.organizer_forms import (
@@ -575,6 +576,13 @@ def save_payment_information(request, organizer):
     try:
         stripe_customer_id = get_stripe_customer_id(organizer)
         update_payment_info(setup_intent_id, stripe_customer_id)
+        organizer_billing_payment_method_saved.send(
+            sender=request.organizer,
+            organizer=request.organizer,
+            user=request.user,
+            stripe_customer_id=stripe_customer_id,
+            setup_intent_id=setup_intent_id,
+        )
 
         return Response(
             {
