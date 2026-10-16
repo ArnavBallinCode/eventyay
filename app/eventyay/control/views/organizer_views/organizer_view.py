@@ -596,7 +596,7 @@ def save_payment_information(request, organizer):
         return Response(
             {
                 'success': True,
-                'automatic_payments_enabled': not receiver_errors,
+                'billing_integration_notified': not receiver_errors,
             }
         )
     except ValidationError as e:

@@ -168,7 +168,7 @@ class OrganizerTest(SoupTest):
             response = self.client.post(url, {'setup_intent_id': 'seti_automatic'})
 
         assert response.status_code == 200
-        assert response.json()['automatic_payments_enabled'] is True
+        assert response.json()['billing_integration_notified'] is True
         send_robust.assert_called_once_with(
             sender=self.orga1,
             organizer=self.orga1,
@@ -200,7 +200,7 @@ class OrganizerTest(SoupTest):
         assert response.status_code == 200
         assert response.json() == {
             'success': True,
-            'automatic_payments_enabled': False,
+            'billing_integration_notified': False,
         }
 
     def test_billing_payment_method_discloses_automatic_payments(self):
@@ -228,7 +228,7 @@ class OrganizerTest(SoupTest):
 
         assert response.status_code == 200
         assert b'Save and enable automatic payments' in response.content
-        assert b'without canceling your active subscriptions' in response.content
+        assert b'automatic payments are managed separately' in response.content
 
     def test_organizer_display_settings(self):
         called = False

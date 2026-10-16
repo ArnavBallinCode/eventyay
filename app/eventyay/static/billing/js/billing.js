@@ -146,8 +146,8 @@ $(document).ready(function () {
                 return response.json();
             }).then(data => {
                 notification.style.display = 'block';
-                if (data.automatic_payments_enabled === false) {
-                    notification.innerText = 'Payment information saved, but automatic payments could not be enabled. Please contact support.';
+                if (data.billing_integration_notified === false) {
+                    notification.innerText = 'Payment information saved, but automatic billing setup could not be completed. Please contact support.';
                     notification.style.color = 'darkorange';
                 } else {
                     notification.innerText = 'Payment information saved and automatic payments enabled.';
