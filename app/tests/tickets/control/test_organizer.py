@@ -1,5 +1,5 @@
 import datetime
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from django.db import transaction
@@ -161,19 +161,47 @@ class OrganizerTest(SoupTest):
                 'eventyay.control.views.organizer_views.organizer_view.update_payment_info'
             ),
             patch(
-                'eventyay.control.views.organizer_views.organizer_view.organizer_billing_payment_method_saved.send'
-            ) as send,
+                'eventyay.control.views.organizer_views.organizer_view.organizer_billing_payment_method_saved.send_robust',
+                return_value=[],
+            ) as send_robust,
         ):
             response = self.client.post(url, {'setup_intent_id': 'seti_automatic'})
 
         assert response.status_code == 200
-        send.assert_called_once_with(
+        assert response.json()['automatic_payments_enabled'] is True
+        send_robust.assert_called_once_with(
             sender=self.orga1,
             organizer=self.orga1,
             user=self.user,
             stripe_customer_id='cus_automatic',
             setup_intent_id='seti_automatic',
         )
+
+    def test_receiver_failure_does_not_fail_saved_payment_information(self):
+        url = reverse(
+            'control:organizer.save_payment_information',
+            kwargs={'organizer': self.orga1.slug},
+        )
+        with (
+            patch(
+                'eventyay.control.views.organizer_views.organizer_view.get_stripe_customer_id',
+                return_value='cus_automatic',
+            ),
+            patch(
+                'eventyay.control.views.organizer_views.organizer_view.update_payment_info'
+            ),
+            patch(
+                'eventyay.control.views.organizer_views.organizer_view.organizer_billing_payment_method_saved.send_robust',
+                return_value=[(MagicMock(), RuntimeError('receiver failed'))],
+            ),
+        ):
+            response = self.client.post(url, {'setup_intent_id': 'seti_automatic'})
+
+        assert response.status_code == 200
+        assert response.json() == {
+            'success': True,
+            'automatic_payments_enabled': False,
+        }
 
     def test_billing_payment_method_discloses_automatic_payments(self):
         OrganizerBillingModel.objects.create(

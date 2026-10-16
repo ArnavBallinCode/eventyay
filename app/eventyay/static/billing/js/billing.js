@@ -146,8 +146,13 @@ $(document).ready(function () {
                 return response.json();
             }).then(data => {
                 notification.style.display = 'block';
-                notification.innerText = 'Payment information saved and automatic payments enabled.';
-                notification.style.color = 'green';
+                if (data.automatic_payments_enabled === false) {
+                    notification.innerText = 'Payment information saved, but automatic payments could not be enabled. Please contact support.';
+                    notification.style.color = 'darkorange';
+                } else {
+                    notification.innerText = 'Payment information saved and automatic payments enabled.';
+                    notification.style.color = 'green';
+                }
                 window.location.reload()
             })
             .catch((error) => {

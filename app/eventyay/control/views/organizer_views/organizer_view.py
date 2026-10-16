@@ -576,17 +576,27 @@ def save_payment_information(request, organizer):
     try:
         stripe_customer_id = get_stripe_customer_id(organizer)
         update_payment_info(setup_intent_id, stripe_customer_id)
-        organizer_billing_payment_method_saved.send(
+        signal_responses = organizer_billing_payment_method_saved.send_robust(
             sender=request.organizer,
             organizer=request.organizer,
             user=request.user,
             stripe_customer_id=stripe_customer_id,
             setup_intent_id=setup_intent_id,
         )
+        receiver_errors = []
+        for receiver, response in signal_responses:
+            if isinstance(response, Exception):
+                receiver_errors.append(response)
+                logger.error(
+                    'Automatic billing receiver %r failed after saving payment information.',
+                    receiver,
+                    exc_info=(type(response), response, response.__traceback__),
+                )
 
         return Response(
             {
                 'success': True,
+                'automatic_payments_enabled': not receiver_errors,
             }
         )
     except ValidationError as e:
