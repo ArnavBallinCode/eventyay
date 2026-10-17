@@ -149,10 +149,10 @@ $(document).ready(function () {
                 if (data.billing_integration_notified === false) {
                     notification.innerText = 'Payment information saved, but automatic billing setup could not be completed. Please contact support.';
                     notification.style.color = 'darkorange';
-                } else {
-                    notification.innerText = 'Payment information saved.';
-                    notification.style.color = 'green';
+                    return;
                 }
+                notification.innerText = 'Payment information saved.';
+                notification.style.color = 'green';
                 window.location.reload()
             })
             .catch((error) => {
