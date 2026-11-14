@@ -2,89 +2,16 @@
 Pytest fixtures for eventyay integration tests.
 Provides test users, organizers, events, and authenticated clients.
 """
-import re
-import warnings
-from copy import deepcopy
-from datetime import timedelta
-from urllib.parse import urlsplit, urlunsplit
-
 import pytest
-from django.conf import settings
+from datetime import timedelta
+
 from django.contrib.auth import get_user_model
-from django.core.cache import caches as django_caches
 from django.dispatch import Signal
-from django.test import override_settings
 from django.utils import timezone
 
 from eventyay.base import entitlements
 
-
 User = get_user_model()
-
-
-REDIS_CACHE_BACKENDS = (
-    'django.core.cache.backends.redis.RedisCache',
-    'django_redis.cache.RedisCache',
-)
-# Databases 0-3 are reserved for application services; workers use 4 and up.
-WORKER_REDIS_DB_OFFSET = 4
-REDIS_DB_LIMIT = 16
-
-
-def get_worker_redis_db(worker_id):
-    match = re.fullmatch(r'gw(\d+)', worker_id)
-    if not match:
-        raise pytest.UsageError(f'Unsupported xdist worker id: {worker_id!r}')
-    db = WORKER_REDIS_DB_OFFSET + int(match.group(1))
-    if db >= REDIS_DB_LIMIT:
-        raise pytest.UsageError(
-            f'Worker {worker_id} needs Redis database {db}; at most '
-            f'{REDIS_DB_LIMIT - WORKER_REDIS_DB_OFFSET} workers are supported.'
-        )
-    return db
-
-
-def build_worker_redis_settings(worker_id, redis_url, caches, channel_layers):
-    worker_url = urlunsplit(urlsplit(redis_url)._replace(path=f'/{get_worker_redis_db(worker_id)}'))
-    caches = deepcopy(caches)
-    matched = False
-    for cache in caches.values():
-        if cache.get('BACKEND') in REDIS_CACHE_BACKENDS:
-            cache['LOCATION'] = worker_url
-            matched = True
-    if not matched:
-        warnings.warn(f'No Redis cache configured; worker {worker_id} shares cache state.')
-
-    channel_layers = deepcopy(channel_layers)
-    for layer in channel_layers.values():
-        for host in layer.get('CONFIG', {}).get('hosts', []):
-            if isinstance(host, dict) and 'address' in host:
-                host['address'] = worker_url
-    return caches, channel_layers
-
-
-@pytest.fixture(scope='session', autouse=True)
-def isolate_worker_caches(worker_id):
-    # Cache.clear() flushes a Redis database, including other workers' sessions.
-    # Separate databases also isolate identical model IDs (VersionedModel, via the
-    # channel layer used by sredis()) across test databases.
-    if worker_id == 'master':
-        yield
-        return
-
-    caches, channel_layers = build_worker_redis_settings(
-        worker_id, settings.REDIS_URL, settings.CACHES, settings.CHANNEL_LAYERS
-    )
-    with override_settings(CACHES=caches, CHANNEL_LAYERS=channel_layers):
-        # The cart view resolves its cache once at import time.
-        from eventyay.presale.views import cart
-
-        original = cart.widget_data_cache
-        cart.widget_data_cache = django_caches['redis'] if 'redis' in caches else django_caches['default']
-        try:
-            yield
-        finally:
-            cart.widget_data_cache = original
 
 
 @pytest.fixture
