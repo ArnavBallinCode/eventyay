@@ -9,6 +9,7 @@ on:
       - "app/**/**.py"
       - "app/pyproject.toml"
       - "app/uv.lock"
+      - "app/tests/stable/.test_durations"
       - ".github/workflows/video-backend-ci.yml"
 
 env:
