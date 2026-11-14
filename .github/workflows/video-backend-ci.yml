@@ -126,7 +126,10 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Install uv
-        run: pip install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: app/uv.lock
 
       - name: Sync dependencies (including test group)
         run: uv sync --directory app --group test
@@ -144,10 +147,10 @@ jobs:
           EVY_RUNNING_ENVIRONMENT: testing
           DJANGO_SETTINGS_MODULE: eventyay.config.settings
         working-directory: app
-        # Each shard has its own Postgres and Redis services. Schema comes from the models;
-        # the full migration chain is applied by the backend smoke test.
+        # Each shard has its own Postgres and Redis services. duration_based_chunks keeps
+        # files contiguous, so module-scoped fixtures are not rebuilt in several shards.
         run: >-
-          uv run pytest tests/stable -v --tb=short --nomigrations
+          uv run pytest tests/stable -v --tb=short --durations=10
           --splits 4 --group ${{ matrix.group }} --durations-path tests/stable/.test_durations
 
   pytest-integration-result:
