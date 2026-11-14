@@ -1,16 +1,13 @@
 import { existsSync, readFileSync } from 'node:fs';
 
 // Keeps the "approvals: k/N" labels in sync with approvals from reviewers who have
-// write access, as well as Sourcery AI. Used by .github/workflows/approval-labels.yml;
+// write access. Used by .github/workflows/approval-labels.yml;
 // tested by approval-labels-lib.test.mjs (run with `node --test .github/scripts/*.test.mjs`).
 
 const WRITE_ROLES = ['admin', 'maintain', 'write'];
 const DECISIVE_STATES = ['APPROVED', 'CHANGES_REQUESTED', 'DISMISSED'];
-const SOURCERY_PATTERN = /^sourcery(-ai)?(\[bot\])?$/i;
 
 const escapeRegExp = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-export const isSourcery = login => Boolean(login && SOURCERY_PATTERN.test(login));
 
 function readPrNumberFile(filePath) {
   if (filePath && existsSync(filePath)) {
@@ -131,7 +128,7 @@ export async function runApprovalLabels({ github, context, core, required = 3, p
     });
     const approvers = [];
     for (const login of latestApprovers(reviews, pr.user.login)) {
-      if (isSourcery(login) || await hasWriteAccess(login)) approvers.push(login);
+      if (await hasWriteAccess(login)) approvers.push(login);
     }
     core.info(`#${n}: ${approvers.length} qualifying approval(s) [${approvers.join(', ')}]`);
 

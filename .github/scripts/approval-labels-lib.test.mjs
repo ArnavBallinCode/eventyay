@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { isSourcery, latestApprovers, resolvePrNumbers, runApprovalLabels, wantedLabel } from './approval-labels-lib.mjs';
+import { latestApprovers, resolvePrNumbers, runApprovalLabels, wantedLabel } from './approval-labels-lib.mjs';
 
 const review = (login, state) => ({ user: { login }, state });
 
@@ -186,45 +186,15 @@ test('one failing PR does not stop the others and fails the run', async () => {
   assert.match(core.failed, /#1/);
 });
 
-test('isSourcery identifies Sourcery AI accounts', () => {
-  assert.equal(isSourcery('sourcery-ai[bot]'), true);
-  assert.equal(isSourcery('sourcery-ai'), true);
-  assert.equal(isSourcery('sourcery'), true);
-  assert.equal(isSourcery('SOURCERY-AI[BOT]'), true);
-  assert.equal(isSourcery('other-sourcery'), false);
-  assert.equal(isSourcery('coderabbitai[bot]'), false);
-  assert.equal(isSourcery(null), false);
-  assert.equal(isSourcery(''), false);
-});
-
-test('Sourcery approval counts as a qualifying approval without collaborator write permissions', async () => {
-  const { calls } = await sync(
-    { labels: [], reviews: [review('sourcery-ai[bot]', 'APPROVED')] },
-    {}, // no collaborator write permissions
-  );
-  assert.deepEqual(calls, ['#1 +approvals: 1/3']);
-});
-
-test('Sourcery approval combined with two write-access approvals reaches required threshold', async () => {
+test('Sourcery approval is not counted toward the required approvals', async () => {
   const { calls } = await sync(
     {
       labels: ['approvals: 2/3'],
       reviews: [review('a', 'APPROVED'), review('b', 'APPROVED'), review('sourcery-ai[bot]', 'APPROVED')],
     },
-    { a: 'write', b: 'write' }, // sourcery-ai[bot] is not in perms
+    { a: 'write', b: 'write' },
   );
-  assert.deepEqual(calls, ['#1 -approvals: 2/3']);
-});
-
-test('Sourcery changes requested cancels earlier Sourcery approval', async () => {
-  const { calls } = await sync(
-    {
-      labels: ['approvals: 1/3'],
-      reviews: [review('sourcery-ai[bot]', 'APPROVED'), review('sourcery-ai[bot]', 'CHANGES_REQUESTED')],
-    },
-    {},
-  );
-  assert.deepEqual(calls, ['#1 -approvals: 1/3']);
+  assert.deepEqual(calls, []);
 });
 
 test('fork PR is resolved from artifact file when available', async () => {
