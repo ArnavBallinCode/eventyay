@@ -140,7 +140,8 @@ jobs:
           EVY_RUNNING_ENVIRONMENT: testing
           DJANGO_SETTINGS_MODULE: eventyay.config.settings
         working-directory: app
-        run: uv run pytest tests/stable -v --tb=short
+        # Keep each file on one worker to preserve module-scoped fixture reuse.
+        run: uv run pytest tests/stable -n 4 --dist loadfile -v --tb=short --durations=25
 
   backend-smoke:
     name: Backend smoke test (healthcheck)

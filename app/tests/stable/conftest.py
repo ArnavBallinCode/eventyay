@@ -2,16 +2,44 @@
 Pytest fixtures for eventyay integration tests.
 Provides test users, organizers, events, and authenticated clients.
 """
-import pytest
+from copy import deepcopy
 from datetime import timedelta
+from urllib.parse import urlsplit, urlunsplit
 
+import pytest
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.dispatch import Signal
+from django.test import override_settings
 from django.utils import timezone
 
 from eventyay.base import entitlements
 
+
 User = get_user_model()
+
+
+@pytest.fixture(scope='session', autouse=True)
+def isolate_worker_caches(worker_id):
+    # Cache.clear() flushes a Redis database, including other workers' sessions.
+    # Separate databases also isolate identical model IDs across test databases.
+    if worker_id == 'master':
+        yield
+        return
+
+    redis_url = urlsplit(settings.REDIS_URL)
+    # Reserve databases 0-3 for application services; CI uses four workers (4-7).
+    worker_url = urlunsplit(redis_url._replace(path=f'/{int(worker_id[2:]) + 4}'))
+    caches = deepcopy(settings.CACHES)
+    for cache in caches.values():
+        if cache['BACKEND'] in (
+            'django.core.cache.backends.redis.RedisCache',
+            'django_redis.cache.RedisCache',
+        ):
+            cache['LOCATION'] = worker_url
+
+    with override_settings(CACHES=caches):
+        yield
 
 
 @pytest.fixture
