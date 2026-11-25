@@ -1866,7 +1866,7 @@ class QuickSetupForm(I18nForm):
         if 'eventyay.plugins.paypal' not in plugins_available:
             del self.fields['payment_paypal__enabled']
             
-        if 'eventyay.plugins.banktransfer' not in plugins_available:
+        if settings.DISABLE_NEW_BANK_TRANSFER_PAYMENTS or 'eventyay.plugins.banktransfer' not in plugins_available:
             del self.fields['payment_banktransfer__enabled']
             del self.fields['payment_banktransfer_bank_details_type']
             del self.fields['payment_banktransfer_bank_details_sepa_name']

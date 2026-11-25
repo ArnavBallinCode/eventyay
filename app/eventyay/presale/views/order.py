@@ -451,7 +451,7 @@ class OrderDetails(OrderProtectedActionMixin, EventViewMixin, OrderDetailMixin, 
             lp = self.order.payments.last()
             ctx['can_pay'] = False
 
-            for provider in self.request.event.get_payment_providers().values():
+            for provider in self.request.event.get_payment_providers(for_new_payment=True).values():
                 if provider.is_enabled and provider.order_change_allowed(self.order):
                     ctx['can_pay'] = True
                     break
@@ -841,7 +841,7 @@ class OrderPayChangeMethod(OrderProtectedActionMixin, EventViewMixin, OrderDetai
     def provider_forms(self):
         providers = []
         pending_sum = self.order.pending_sum
-        for provider in self.request.event.get_payment_providers().values():
+        for provider in self.request.event.get_payment_providers(for_new_payment=True).values():
             if not provider.is_enabled or not provider.order_change_allowed(self.order):
                 continue
             current_fee = sum(f.value for f in self.open_fees) or Decimal('0.00')

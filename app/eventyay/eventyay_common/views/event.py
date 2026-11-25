@@ -56,7 +56,7 @@ from eventyay.base.models.submission import Submission, SpeakerRole
 from eventyay.base.operational_logging import OUTCOME_FAILURE, log_event
 from eventyay.base.services.notifications import notify_organizer_followers
 from eventyay.base.models.cfp import default_fields
-from eventyay.consts import DEFAULT_PLUGINS
+from eventyay.consts import DEFAULT_PLUGINS, BANK_TRANSFER_PLUGIN_MODULES
 from eventyay.base.services import tickets
 from eventyay.base.settings import (
     DEFAULTS,
@@ -630,6 +630,8 @@ class EventCreateView(TemplateView):
 
             all_plugins = list(dict.fromkeys(default_plugins + global_default_plugins + ticketing_plugins))
             globally_disabled = GlobalPluginConfig.get_disabled_modules()
+            if settings.DISABLE_NEW_BANK_TRANSFER_PAYMENTS:
+                globally_disabled = globally_disabled.union(BANK_TRANSFER_PLUGIN_MODULES)
             all_plugins = [m for m in all_plugins if m not in globally_disabled]
             event.plugins = ','.join(all_plugins)
 

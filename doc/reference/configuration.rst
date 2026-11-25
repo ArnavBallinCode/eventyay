@@ -111,6 +111,13 @@ Plugins & Modules
 ``plugins_default``
     A list of plugins that are enabled by default for all new events.
 
+``disable_new_bank_transfer_payments``
+    Set ``EVY_DISABLE_NEW_BANK_TRANSFER_PAYMENTS=true`` to stop offering manual
+    bank transfers for new ticket payments. Configure another payment method
+    for affected paid events. Keep the plugin enabled on existing events so
+    staff can reconcile outstanding transfers and process refunds. Defaults
+    to false.
+
 ``plugins_exclude``
     A list of plugins that are completely disabled for the installation.
 

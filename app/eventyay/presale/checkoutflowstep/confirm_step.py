@@ -97,7 +97,7 @@ class ConfirmStep(CartMixin, AsyncAction, TemplateFlowStep):
     def payment_provider(self):
         if 'payment' not in self.cart_session:
             return None
-        return self.request.event.get_payment_providers().get(self.cart_session['payment'])
+        return self.request.event.get_payment_providers(for_new_payment=True).get(self.cart_session['payment'])
 
     def get(self, request):
         self.request = request

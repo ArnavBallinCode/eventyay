@@ -18,6 +18,9 @@ DEFAULT_PLUGINS = (
     'eventyay.plugins.checkinlists',
 )
 
+BANK_TRANSFER_PROVIDER_IDENTIFIERS = frozenset({'banktransfer'})
+BANK_TRANSFER_PLUGIN_MODULES = frozenset({'eventyay.plugins.banktransfer'})
+
 # Email configuration constants
 EVENTYAY_EMAIL_NONE_VALUE = 'info@eventyay.com'
 
