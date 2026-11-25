@@ -64,6 +64,7 @@ from eventyay.helpers.placeholders import escape_stray_braces
 from ...helpers.countries import CachedCountries, FastCountryField
 from .base import LockModel, LoggedModel
 from .event import Event, SubEvent
+from .giftcards import GiftCard, GiftCardTransaction
 from .product import Product, ProductVariation, Question, QuestionOption, Quota
 
 logger = logging.getLogger(__name__)
@@ -615,17 +616,22 @@ class Order(LockModel, LoggedModel):
             elif not self.event.settings.cancel_allow_user_paid:
                 return []
 
+        purchase_credit = GiftCardTransaction.purchase_credits(OuterRef('pk'))[:1]
+        changed_cards = GiftCard.objects.filter(issued_in_id=OuterRef('pk')).annotate(
+            balance=Coalesce(Sum('transactions__value'), Decimal('0.00')),
+            original_credit=Coalesce(Subquery(purchase_credit), F('issued_in__price')),
+        ).exclude(balance=F('original_credit'))
         positions = list(
             self.positions.all()
             .annotate(has_checkin=Exists(Checkin.objects.filter(position_id=OuterRef('pk'))))
             .select_related('product')
-            .prefetch_related('issued_gift_cards')
+            .annotate(has_changed_card=Exists(changed_cards))
         )
 
         def is_position_cancelable(op):
             if not op.product.allow_cancel or op.has_checkin:
                 return False
-            if any(gc.value != op.price for gc in op.issued_gift_cards.all()):
+            if op.has_changed_card:
                 return False
             return True
 

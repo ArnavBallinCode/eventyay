@@ -87,6 +87,12 @@ class GiftCard(LoggedModel):
     def value(self):
         return self.transactions.aggregate(s=Sum('value'))['s'] or Decimal('0.00')
 
+    @property
+    def issued_value(self):
+        """Use the recorded purchase credit, including on older discounted cards."""
+        credit = GiftCardTransaction.purchase_credits(self.pk).first()
+        return credit if credit is not None else self.issued_in.price
+
     def accepted_by(self, organizer) -> bool:
         return self.issuer_id == organizer.pk
 
@@ -127,6 +133,12 @@ class GiftCardTransaction(models.Model):
         on_delete=models.PROTECT,
     )
     text = models.TextField(blank=True, null=True)
+
+    @classmethod
+    def purchase_credits(cls, card_id):
+        return cls.objects.filter(
+            card_id=card_id, order__isnull=False, payment__isnull=True, refund__isnull=True, value__gt=0,
+        ).order_by('pk').values_list('value', flat=True)
 
     class Meta:
         ordering = ('datetime',)
