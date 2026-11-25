@@ -18,9 +18,6 @@ DEFAULT_PLUGINS = (
     'eventyay.plugins.checkinlists',
 )
 
-PAYPAL_PROVIDER_IDENTIFIERS = frozenset({'paypal', 'stripe_paypal'})
-PAYPAL_PLUGIN_MODULES = frozenset({'eventyay_paypal', 'eventyay.plugins.paypal'})
-
 # Email configuration constants
 EVENTYAY_EMAIL_NONE_VALUE = 'info@eventyay.com'
 

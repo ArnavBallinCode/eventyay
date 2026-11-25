@@ -111,6 +111,13 @@ Plugins & Modules
 ``plugins_default``
     A list of plugins that are enabled by default for all new events.
 
+``disable_new_bank_transfer_payments``
+    Set ``EVY_DISABLE_NEW_BANK_TRANSFER_PAYMENTS=true`` to retire manual bank
+    transfers for new ticket payments. Keep the bank transfer plugin enabled
+    on existing events to match incoming transfers and process refunds.
+    This setting is independent of PayPal and Stripe methods such as SEPA
+    Direct Debit. Defaults to false.
+
 ``disable_new_paypal_payments``
     Set ``EVY_DISABLE_NEW_PAYPAL_PAYMENTS=true`` to stop offering PayPal and
     PayPal via Stripe for new ticket payments. Before rollout, configure

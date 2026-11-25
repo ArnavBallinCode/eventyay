@@ -254,29 +254,31 @@ def test_availability_date_order_relative_subevents(event):
     assert not prov._is_still_available(order=order)
 
 
-@pytest.mark.parametrize('identifier', ['paypal', 'stripe_paypal'])
+@pytest.mark.parametrize('identifier', ['paypal', 'stripe_paypal', 'banktransfer'])
 def test_retired_payment_method_remains_available_on_existing_payments(settings, identifier):
     event = Event()
     provider = object()
     card = object()
     event._cached_payment_providers = {identifier: provider, 'stripe': card}
-    settings.DISABLE_NEW_PAYPAL_PAYMENTS = True
+    flag = 'DISABLE_NEW_BANK_TRANSFER_PAYMENTS' if identifier == 'banktransfer' else 'DISABLE_NEW_PAYPAL_PAYMENTS'
+    setattr(settings, flag, True)
 
     assert event.get_payment_providers(cached=True, for_new_payment=True) == {'stripe': card}
     payment = OrderPayment(order=Order(event=event), provider=identifier)
     assert payment.payment_provider is provider
 
-    settings.DISABLE_NEW_PAYPAL_PAYMENTS = False
+    setattr(settings, flag, False)
     assert event.get_payment_providers(cached=True, for_new_payment=True)[identifier] is provider
 
 
-@pytest.mark.parametrize('identifier', ['paypal', 'stripe_paypal'])
+@pytest.mark.parametrize('identifier', ['paypal', 'stripe_paypal', 'banktransfer'])
 def test_new_payment_api_rejects_retired_method(settings, identifier):
-    settings.DISABLE_NEW_PAYPAL_PAYMENTS = True
+    flag = 'DISABLE_NEW_BANK_TRANSFER_PAYMENTS' if identifier == 'banktransfer' else 'DISABLE_NEW_PAYPAL_PAYMENTS'
+    setattr(settings, flag, True)
     serializer = OrderPaymentCreateSerializer()
     with pytest.raises(ValidationError, match='unavailable'):
         serializer.validate_provider(identifier)
     assert serializer.validate_provider('stripe') == 'stripe'
 
-    settings.DISABLE_NEW_PAYPAL_PAYMENTS = False
+    setattr(settings, flag, False)
     assert serializer.validate_provider(identifier) == identifier

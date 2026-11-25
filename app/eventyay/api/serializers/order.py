@@ -54,7 +54,8 @@ from eventyay.base.services.locking import NoLockManager
 from eventyay.base.services.pricing import get_price
 from eventyay.base.settings import COUNTRIES_WITH_STATE_IN_ADDRESS
 from eventyay.base.signals import register_ticket_outputs
-from eventyay.consts import PAYPAL_PROVIDER_IDENTIFIERS, SizeKey
+from eventyay.base.payment_availability import retired_payment_providers
+from eventyay.consts import SizeKey
 from eventyay.multidomain.urlreverse import build_absolute_uri
 
 
@@ -1739,7 +1740,7 @@ class OrderPaymentCreateSerializer(I18nAwareModelSerializer):
         fields = ('state', 'amount', 'payment_date', 'provider', 'info')
 
     def validate_provider(self, provider):
-        if settings.DISABLE_NEW_PAYPAL_PAYMENTS and provider in PAYPAL_PROVIDER_IDENTIFIERS:
+        if provider in retired_payment_providers():
             raise ValidationError('This payment provider is unavailable for new payments.')
         return provider
 

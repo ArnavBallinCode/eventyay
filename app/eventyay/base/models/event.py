@@ -54,7 +54,8 @@ from eventyay.common.language import LANGUAGE_NAMES
 from eventyay.common.text.path import path_with_hash, resolve_media_path as _resolve_media_path
 from eventyay.common.text.phrases import phrases
 from eventyay.common.urls import EventUrls, is_http_url
-from eventyay.consts import PAYPAL_PROVIDER_IDENTIFIERS, TIMEZONE_CHOICES
+from eventyay.base.payment_availability import retired_payment_providers
+from eventyay.consts import TIMEZONE_CHOICES
 from eventyay.core.permissions import (
     MAX_PERMISSIONS_IF_SILENCED,
     ORGANIZER_ROLES,
@@ -2087,10 +2088,10 @@ class Event(
                     key=lambda v: (-v[1].priority, str(v[1].verbose_name)),
                 )
             )
-        if for_new_payment and settings.DISABLE_NEW_PAYPAL_PAYMENTS:
+        if for_new_payment and (retired := retired_payment_providers()):
             return {
                 identifier: provider for identifier, provider in self._cached_payment_providers.items()
-                if identifier not in PAYPAL_PROVIDER_IDENTIFIERS
+                if identifier not in retired
             }
         return self._cached_payment_providers
 
