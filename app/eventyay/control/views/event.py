@@ -64,7 +64,7 @@ from eventyay.base.templatetags.rich_text import (
     is_tiptap_email_html,
     markdown_compile_email,
 )
-from eventyay.base.payment_availability import retired_payment_plugins
+from eventyay.consts import PAYPAL_PLUGIN_MODULES
 from eventyay.control.forms.event import (
     CancelSettingsForm,
     CommentForm,
@@ -356,7 +356,9 @@ class EventPlugins(
     @cached_property
     def hidden_from_organizer(self):
         hidden_from_organizer = GlobalPluginConfig.get_hidden_from_organizer_modules()
-        return hidden_from_organizer.union(retired_payment_plugins())
+        if settings.DISABLE_NEW_PAYPAL_PAYMENTS:
+            hidden_from_organizer = hidden_from_organizer.union(PAYPAL_PLUGIN_MODULES)
+        return hidden_from_organizer
 
     def get_context_data(self, *args, **kwargs) -> dict:
         context = super().get_context_data(*args, **kwargs)
@@ -417,7 +419,7 @@ class EventPlugins(
             for key, value in request.POST.items():
                 if key.startswith('plugin:'):
                     module = key.split(':')[1]
-                    if module in retired_payment_plugins():
+                    if settings.DISABLE_NEW_PAYPAL_PAYMENTS and module in PAYPAL_PLUGIN_MODULES:
                         continue
                     if value == 'enable' and module in plugins_available:
                         if getattr(plugins_available[module], 'restricted', False):

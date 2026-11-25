@@ -133,7 +133,6 @@ class BaseSettings(_BaseSettings):
     obligatory_2fa: bool = False
     plugins_default: Annotated[tuple[str, ...], Field(default_factory=lambda: DEFAULT_PLUGINS)]
     plugins_exclude: Annotated[tuple[str, ...], Field(default_factory=tuple)]
-    disable_new_bank_transfer_payments: bool = False
     disable_new_paypal_payments: bool = False
     metrics_enabled: bool = False
     metrics_user: str = 'metrics'
@@ -378,7 +377,6 @@ _OURS_APPS = (
 )
 
 EVENTYAY_PLUGINS_DEFAULT = conf.plugins_default
-DISABLE_NEW_BANK_TRANSFER_PAYMENTS = conf.disable_new_bank_transfer_payments
 DISABLE_NEW_PAYPAL_PAYMENTS = conf.disable_new_paypal_payments
 EVENTYAY_PLUGINS_EXCLUDE = conf.plugins_exclude
 
