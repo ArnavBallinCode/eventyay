@@ -142,7 +142,7 @@ def paid_order(event):
 @pytest.mark.django_db
 @pytest.mark.parametrize('original_payment', [False, True])
 def test_foreign_refund_destination_rejected(paid_order, foreign_card, original_payment):
-    refund = paid_order.refunds.create(provider='giftcard', amount=5)
+    refund = paid_order.refunds.create(provider='giftcard', state='created', amount=5)
     if original_payment:
         payment = paid_order.payments.create(provider='giftcard', amount=5)
         payment.info_data = {'gift_card': foreign_card.pk}
@@ -151,7 +151,7 @@ def test_foreign_refund_destination_rejected(paid_order, foreign_card, original_
     else:
         refund.info_data = {'gift_card': foreign_card.pk}
     refund.save()
-    with pytest.raises(PaymentException):
+    with pytest.raises(PaymentException, match='No eligible gift card'):
         GiftCardPayment(paid_order.event).execute_refund(refund)
     assert foreign_card.value == 20
     assert not refund.gift_card_transactions.exists()
@@ -202,7 +202,7 @@ def test_partial_refund_to_original_gift_card(paid_order, own_card):
     payment.info_data = {'gift_card': own_card.pk}
     payment.save()
     own_card.transactions.create(value=-8, order=paid_order, payment=payment)
-    refund = paid_order.refunds.create(provider='giftcard', payment=payment, amount=3)
+    refund = paid_order.refunds.create(provider='giftcard', state='created', payment=payment, amount=3)
     GiftCardPayment(paid_order.event).execute_refund(refund)
     assert own_card.value == 15
     assert refund.info_data['gift_card'] == own_card.pk
