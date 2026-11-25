@@ -54,7 +54,7 @@ from eventyay.base.services.locking import NoLockManager
 from eventyay.base.services.pricing import get_price
 from eventyay.base.settings import COUNTRIES_WITH_STATE_IN_ADDRESS
 from eventyay.base.signals import register_ticket_outputs
-from eventyay.consts import SizeKey
+from eventyay.consts import PAYPAL_PROVIDER_IDENTIFIERS, SizeKey
 from eventyay.multidomain.urlreverse import build_absolute_uri
 
 
@@ -1158,7 +1158,7 @@ class OrderCreateSerializer(I18nAwareModelSerializer):
     def validate_payment_provider(self, pp):
         if pp is None:
             return None
-        if pp not in self.context['event'].get_payment_providers():
+        if pp not in self.context['event'].get_payment_providers(for_new_payment=True):
             raise ValidationError('The given payment provider is not known.')
         return pp
 
@@ -1737,6 +1737,11 @@ class OrderPaymentCreateSerializer(I18nAwareModelSerializer):
     class Meta:
         model = OrderPayment
         fields = ('state', 'amount', 'payment_date', 'provider', 'info')
+
+    def validate_provider(self, provider):
+        if settings.DISABLE_NEW_PAYPAL_PAYMENTS and provider in PAYPAL_PROVIDER_IDENTIFIERS:
+            raise ValidationError('This payment provider is unavailable for new payments.')
+        return provider
 
     def create(self, validated_data):
         order = OrderPayment(order=self.context['order'], **validated_data)

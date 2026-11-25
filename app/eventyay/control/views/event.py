@@ -64,6 +64,7 @@ from eventyay.base.templatetags.rich_text import (
     is_tiptap_email_html,
     markdown_compile_email,
 )
+from eventyay.consts import PAYPAL_PLUGIN_MODULES
 from eventyay.control.forms.event import (
     CancelSettingsForm,
     CommentForm,
@@ -352,14 +353,20 @@ class EventPlugins(
     def get_object(self, queryset=None) -> Event:
         return self.request.event
 
+    @cached_property
+    def hidden_from_organizer(self):
+        hidden_from_organizer = GlobalPluginConfig.get_hidden_from_organizer_modules()
+        if settings.DISABLE_NEW_PAYPAL_PAYMENTS:
+            hidden_from_organizer = hidden_from_organizer.union(PAYPAL_PLUGIN_MODULES)
+        return hidden_from_organizer
+
     def get_context_data(self, *args, **kwargs) -> dict:
         context = super().get_context_data(*args, **kwargs)
-        hidden_from_organizer = GlobalPluginConfig.get_hidden_from_organizer_modules()
         plugins = [
             p for p in get_all_plugins(self.object)
             if not p.name.startswith('.')
             and getattr(p, 'visible', True)
-            and p.module not in hidden_from_organizer
+            and p.module not in self.hidden_from_organizer
         ]
         order = [
             'FEATURE',
@@ -398,13 +405,12 @@ class EventPlugins(
     def post(self, request, *args, **kwargs):
         self.object = self.get_object()
 
-        hidden_from_organizer = GlobalPluginConfig.get_hidden_from_organizer_modules()
         plugins_available = {
             p.module: p
             for p in get_all_plugins(self.object)
             if not p.name.startswith('.')
             and getattr(p, 'visible', True)
-            and p.module not in hidden_from_organizer
+            and p.module not in self.hidden_from_organizer
         }
 
         with transaction.atomic():
@@ -413,6 +419,8 @@ class EventPlugins(
             for key, value in request.POST.items():
                 if key.startswith('plugin:'):
                     module = key.split(':')[1]
+                    if settings.DISABLE_NEW_PAYPAL_PAYMENTS and module in PAYPAL_PLUGIN_MODULES:
+                        continue
                     if value == 'enable' and module in plugins_available:
                         if getattr(plugins_available[module], 'restricted', False):
                             if not allow_restricted:
@@ -474,7 +482,7 @@ class PaymentProviderSettings(
 
     @cached_property
     def provider(self):
-        provider = self.request.event.get_payment_providers().get(self.kwargs['provider'])
+        provider = self.request.event.get_payment_providers(for_new_payment=True).get(self.kwargs['provider'])
         return provider
 
     @cached_property
@@ -600,7 +608,7 @@ class PaymentSettings(EventSettingsViewMixin, EventSettingsFormView):
         context['providers'] = sorted(
             [
                 p
-                for p in self.request.event.get_payment_providers().values()
+                for p in self.request.event.get_payment_providers(for_new_payment=True).values()
                 if not (p.is_implicit(self.request) if callable(p.is_implicit) else p.is_implicit)
                 and (p.settings_form_fields or p.settings_content_render(self.request))
             ],

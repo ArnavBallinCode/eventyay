@@ -111,6 +111,14 @@ Plugins & Modules
 ``plugins_default``
     A list of plugins that are enabled by default for all new events.
 
+``disable_new_paypal_payments``
+    Set ``EVY_DISABLE_NEW_PAYPAL_PAYMENTS=true`` to stop offering PayPal and
+    PayPal via Stripe for new ticket payments. Before rollout, configure
+    another payment method for each paid event. Keep the plugins loaded,
+    credentials configured, and webhook endpoints active so existing payments
+    can complete and staff can process refunds. Set the flag to false to
+    restore the previous event settings. Defaults to false.
+
 ``plugins_exclude``
     A list of plugins that are completely disabled for the installation.
 
