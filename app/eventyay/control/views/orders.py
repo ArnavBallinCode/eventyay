@@ -4,7 +4,7 @@ import mimetypes
 import os
 import re
 from datetime import datetime, time, timedelta
-from decimal import Decimal, DecimalException
+from decimal import Decimal
 from urllib.parse import quote, urlencode
 from zoneinfo import ZoneInfo
 
@@ -26,7 +26,7 @@ from django.db.models import (
     Subquery,
     Sum,
 )
-from django.forms import formset_factory
+from django.forms import DecimalField, formset_factory
 from django.http import (
     FileResponse,
     Http404,
@@ -1176,13 +1176,17 @@ class OrderRefundView(OrderView):
         if 'perform' in self.request.POST:
             refund_selected = Decimal('0.00')
             refunds = []
+            completed_giftcard = None
 
             is_valid = True
+            amount_field = DecimalField(
+                min_value=0, max_digits=10, decimal_places=self.start_form.fields['partial_amount'].decimal_places,
+            )
             manual_value = self.request.POST.get('refund-manual', '0') or '0'
             manual_value = formats.sanitize_separators(manual_value)
             try:
-                manual_value = Decimal(manual_value)
-            except (DecimalException, TypeError):
+                manual_value = amount_field.clean(manual_value)
+            except ValidationError:
                 messages.error(self.request, _('You entered an invalid number.'))
                 is_valid = False
             else:
@@ -1207,19 +1211,13 @@ class OrderRefundView(OrderView):
             giftcard_value = self.request.POST.get('refund-new-giftcard', '0') or '0'
             giftcard_value = formats.sanitize_separators(giftcard_value)
             try:
-                giftcard_value = Decimal(giftcard_value)
-            except (DecimalException, TypeError):
+                giftcard_value = amount_field.clean(giftcard_value)
+            except ValidationError:
                 messages.error(self.request, _('You entered an invalid number.'))
                 is_valid = False
             else:
                 if giftcard_value:
                     refund_selected += giftcard_value
-                    giftcard = self.request.organizer.issued_gift_cards.create(
-                        expires=self.request.organizer.default_gift_card_expiry,
-                        currency=self.request.event.currency,
-                        testmode=self.order.testmode,
-                    )
-                    giftcard.log_action('eventyay.giftcards.created', user=self.request.user, data={})
                     refunds.append(
                         OrderRefund(
                             order=self.order,
@@ -1230,15 +1228,14 @@ class OrderRefundView(OrderView):
                             amount=giftcard_value,
                             provider='giftcard',
                             comment=comment,
-                            info=json.dumps({'gift_card': giftcard.pk}),
                         )
                     )
 
             offsetting_value = self.request.POST.get('refund-offsetting', '0') or '0'
             offsetting_value = formats.sanitize_separators(offsetting_value)
             try:
-                offsetting_value = Decimal(offsetting_value)
-            except (DecimalException, TypeError):
+                offsetting_value = amount_field.clean(offsetting_value)
+            except ValidationError:
                 messages.error(self.request, _('You entered an invalid number.'))
                 is_valid = False
             else:
@@ -1274,8 +1271,8 @@ class OrderRefundView(OrderView):
                 prof_value = self.request.POST.get(f'newrefund-{identifier}', '0') or '0'
                 prof_value = formats.sanitize_separators(prof_value)
                 try:
-                    prof_value = Decimal(prof_value)
-                except (DecimalException, TypeError):
+                    prof_value = amount_field.clean(prof_value)
+                except ValidationError:
                     messages.error(self.request, _('You entered an invalid number.'))
                     is_valid = False
                     continue
@@ -1297,8 +1294,8 @@ class OrderRefundView(OrderView):
                 value = self.request.POST.get('refund-{}'.format(p.pk), '0') or '0'
                 value = formats.sanitize_separators(value)
                 try:
-                    value = Decimal(value)
-                except (DecimalException, TypeError):
+                    value = amount_field.clean(value)
+                except ValidationError:
                     messages.error(self.request, _('You entered an invalid number.'))
                     is_valid = False
                 else:
@@ -1336,6 +1333,14 @@ class OrderRefundView(OrderView):
             refund_selected = round_decimal(refund_selected, self.request.event.currency)
             if refund_selected == full_refund and is_valid:
                 for r in refunds:
+                    if r.provider == 'giftcard' and r.payment_id is None:
+                        giftcard = self.request.organizer.issued_gift_cards.create(
+                            expires=self.request.organizer.default_gift_card_expiry,
+                            currency=self.request.event.currency,
+                            testmode=self.order.testmode,
+                        )
+                        giftcard.log_action('eventyay.giftcards.created', user=self.request.user, data={})
+                        r.info_data = {'gift_card': giftcard.pk}
                     r.save()
                     self.order.log_action(
                         'eventyay.event.order.refund.created',
@@ -1362,6 +1367,8 @@ class OrderRefundView(OrderView):
                         else:
                             any_success = True
                             if r.state == OrderRefund.REFUND_STATE_DONE:
+                                if r.provider == 'giftcard' and r.payment_id is None:
+                                    completed_giftcard = giftcard
                                 messages.success(
                                     self.request,
                                     _('A refund of {} has been processed.').format(
@@ -1394,7 +1401,7 @@ class OrderRefundView(OrderView):
                             )
                             self.order.save(update_fields=['status', 'expires'])
 
-                    if giftcard_value and self.order.email:
+                    if completed_giftcard and self.order.email:
                         messages.success(
                             self.request,
                             _('A new gift card was created. You can now send the user their gift card code.'),
@@ -1423,7 +1430,7 @@ class OrderRefundView(OrderView):
                                                 giftcard_value,
                                                 self.request.event.currency,
                                             ),
-                                            giftcard=giftcard.secret,
+                                            giftcard=completed_giftcard.secret,
                                         ),
                                     }
                                 )

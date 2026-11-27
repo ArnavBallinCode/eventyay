@@ -4,12 +4,13 @@ from unittest.mock import MagicMock, patch
 import pytest
 from django.core.cache import cache
 from django.test import override_settings
-from django_scopes import scopes_disabled
+from django_scopes import scope, scopes_disabled
 from rest_framework.test import APIClient
 
-from eventyay.base.models import Organizer, Team
-from eventyay.base.payment import GiftCardPayment
+from eventyay.base.models import Order, Organizer, Team
+from eventyay.base.payment import GiftCardPayment, PaymentException
 from eventyay.base.services.cart import get_fees
+from eventyay.base.services.orders import _try_auto_refund
 from eventyay.control.forms.organizer_forms import GiftCardCreateForm
 
 
@@ -128,3 +129,80 @@ def test_control_cannot_add_cross_organizer_acceptance(organizer_client, organiz
     resp = organizer_client.post(f'/control/organizer/{organizer.slug}/giftcards', {'add': other_organizer.slug})
     assert resp.status_code == 405
     assert not organizer.gift_card_issuer_acceptance.exists()
+
+
+@pytest.fixture
+def paid_order(event):
+    with scope(event=event, organizer=event.organizer):
+        order = Order.objects.create(event=event, status=Order.STATUS_PAID, total=10)
+        order.payments.create(provider='manual', amount=10, state='confirmed')
+        yield order
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize('original_payment', [False, True])
+def test_foreign_refund_destination_rejected(paid_order, foreign_card, original_payment):
+    refund = paid_order.refunds.create(provider='giftcard', state='created', amount=5)
+    if original_payment:
+        payment = paid_order.payments.create(provider='giftcard', amount=5)
+        payment.info_data = {'gift_card': foreign_card.pk}
+        payment.save()
+        refund.payment = payment
+    else:
+        refund.info_data = {'gift_card': foreign_card.pk}
+    refund.save()
+    with pytest.raises(PaymentException, match='No eligible gift card'):
+        GiftCardPayment(paid_order.event).execute_refund(refund)
+    assert foreign_card.value == 20
+    assert not refund.gift_card_transactions.exists()
+
+
+@pytest.mark.django_db
+@override_settings(SITE_URL='https://testserver')
+@pytest.mark.parametrize('allocated,expected', [('5.00', 5), ('6.00', 0), ('-1.00', 0)])
+def test_manual_gift_card_refund_allocation(organizer_client, paid_order, allocated, expected):
+    event = paid_order.event
+    response = organizer_client.post(
+        f'/control/event/{event.organizer.slug}/{event.slug}/orders/{paid_order.code}/refund',
+        {'start-mode': 'partial', 'start-partial_amount': '5.00', 'start-action': 'do_nothing',
+         'perform': 'on', 'refund-new-giftcard': allocated},
+    )
+    assert response.status_code in (200, 302)
+    if expected:
+        refund = paid_order.refunds.get()
+        card = event.organizer.issued_gift_cards.get()
+        GiftCardPayment(event).execute_refund(refund)
+        assert card.value == expected
+        assert refund.gift_card_transactions.count() == 1
+    else:
+        assert not event.organizer.issued_gift_cards.exists()
+        assert not paid_order.refunds.exists()
+
+
+@pytest.mark.django_db
+def test_cancellation_credit_uses_refundable_balance(paid_order):
+    event = paid_order.event
+    event.settings.cancel_allow_user_paid_keep_percentage = Decimal('20')
+    event.settings.cancel_allow_user_paid_keep = Decimal('1.00')
+    fee = paid_order.user_cancel_fee
+    assert fee == Decimal('3.00')
+    paid_order.total = fee
+    paid_order.save(update_fields=['total'])
+    _try_auto_refund(paid_order, refund_as_giftcard=True)
+    card = event.organizer.issued_gift_cards.get()
+    assert card.currency == event.currency
+    assert card.testmode == paid_order.testmode
+    assert card.value == Decimal('7.00')
+    assert paid_order.pending_sum == 0
+
+
+@pytest.mark.django_db
+def test_partial_refund_to_original_gift_card(paid_order, own_card):
+    payment = paid_order.payments.create(provider='giftcard', amount=8, state='confirmed')
+    payment.info_data = {'gift_card': own_card.pk}
+    payment.save()
+    own_card.transactions.create(value=-8, order=paid_order, payment=payment)
+    refund = paid_order.refunds.create(provider='giftcard', state='created', payment=payment, amount=3)
+    GiftCardPayment(paid_order.event).execute_refund(refund)
+    assert own_card.value == 15
+    assert refund.info_data['gift_card'] == own_card.pk

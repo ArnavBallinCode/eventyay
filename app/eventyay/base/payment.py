@@ -1429,7 +1429,21 @@ class GiftCardPayment(BasePaymentProvider):
 
     @transaction.atomic()
     def execute_refund(self, refund: OrderRefund):
-        gc = GiftCard.objects.get(pk=refund.info_data.get('gift_card') or refund.payment.info_data.get('gift_card'))
+        refund.refresh_from_db(from_queryset=OrderRefund.objects.select_for_update())
+        if refund.state == OrderRefund.REFUND_STATE_DONE:
+            return
+        if refund.state != OrderRefund.REFUND_STATE_CREATED or refund.amount <= 0:
+            raise PaymentException(_('This refund cannot be processed.'))
+        card_id = refund.info_data.get('gift_card')
+        if refund.payment_id:
+            card_id = refund.payment.info_data.get('gift_card')
+        event = refund.order.event
+        try:
+            gc = GiftCard.objects.select_for_update().get(
+                pk=card_id, issuer_id=event.organizer_id, currency=event.currency, testmode=refund.order.testmode,
+            )
+        except (GiftCard.DoesNotExist, ValueError, TypeError) as exc:
+            raise PaymentException(_('No eligible gift card was found for this refund.')) from exc
         trans = gc.transactions.create(value=refund.amount, order=refund.order, refund=refund)
         refund.info_data = {
             'gift_card': gc.pk,
