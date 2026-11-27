@@ -1166,7 +1166,7 @@ def _perform_order(
     shown_total=None,
 ):
     if payment_provider:
-        pprov = event.get_payment_providers().get(payment_provider)
+        pprov = event.get_payment_providers(for_new_payment=True).get(payment_provider)
         if not pprov:
             raise OrderError(error_messages['internal'])
     else:

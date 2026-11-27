@@ -43,7 +43,7 @@ class PaymentStep(CartMixin, TemplateFlowStep):
     @cached_property
     def provider_forms(self):
         providers = []
-        payment_providers = self.request.event.get_payment_providers().values()
+        payment_providers = self.request.event.get_payment_providers(for_new_payment=True).values()
         sorted_providers = sorted(payment_providers, key=lambda p: str(p.public_name))
 
         for provider in sorted_providers:
@@ -105,7 +105,7 @@ class PaymentStep(CartMixin, TemplateFlowStep):
 
     @cached_property
     def payment_provider(self):
-        return self.request.event.get_payment_providers().get(self.cart_session['payment'])
+        return self.request.event.get_payment_providers(for_new_payment=True).get(self.cart_session['payment'])
 
     def _is_allowed(self, prov, request):
         return prov.is_allowed(request, total=self._total_order_value)
@@ -135,7 +135,7 @@ class PaymentStep(CartMixin, TemplateFlowStep):
                     del self.cart_session['payment']
                 return False
 
-        for p in self.request.event.get_payment_providers().values():
+        for p in self.request.event.get_payment_providers(for_new_payment=True).values():
             if p.is_implicit(request) if callable(p.is_implicit) else p.is_implicit:
                 if self._is_allowed(p, request):
                     self.cart_session['payment'] = p.identifier
