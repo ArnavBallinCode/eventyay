@@ -1863,7 +1863,7 @@ class QuickSetupForm(I18nForm):
 
         if 'eventyay.plugins.stripe' not in plugins_available:
             del self.fields['payment_stripe__enabled']
-        if 'eventyay.plugins.paypal' not in plugins_available:
+        if settings.DISABLE_NEW_PAYPAL_PAYMENTS or 'eventyay.plugins.paypal' not in plugins_available:
             del self.fields['payment_paypal__enabled']
             
         if 'eventyay.plugins.banktransfer' not in plugins_available:

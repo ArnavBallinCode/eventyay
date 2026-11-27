@@ -1592,7 +1592,7 @@ def get_fees(event, request, total, invoice_address, provider, positions):
         cs['gift_cards'] = gcs
 
     if provider and total != 0:
-        provider = event.get_payment_providers().get(provider)
+        provider = event.get_payment_providers(for_new_payment=True).get(provider)
         if provider:
             payment_fee = provider.calculate_fee(total)
 

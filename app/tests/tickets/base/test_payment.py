@@ -5,12 +5,16 @@ import pytest
 from zoneinfo import ZoneInfo
 from django.utils.timezone import now
 from django_scopes import scope
+from rest_framework.exceptions import ValidationError
+
+from eventyay.api.serializers.order import OrderPaymentCreateSerializer
 
 from eventyay.base.models import (
     CartPosition,
     Event,
     Product as Item,
     Order,
+    OrderPayment,
     OrderPosition,
     Organizer,
 )
@@ -248,3 +252,31 @@ def test_availability_date_order_relative_subevents(event):
         ),
     )
     assert not prov._is_still_available(order=order)
+
+
+@pytest.mark.parametrize('identifier', ['paypal', 'stripe_paypal'])
+def test_retired_payment_method_remains_available_on_existing_payments(settings, identifier):
+    event = Event()
+    provider = object()
+    card = object()
+    event._cached_payment_providers = {identifier: provider, 'stripe': card}
+    settings.DISABLE_NEW_PAYPAL_PAYMENTS = True
+
+    assert event.get_payment_providers(cached=True, for_new_payment=True) == {'stripe': card}
+    payment = OrderPayment(order=Order(event=event), provider=identifier)
+    assert payment.payment_provider is provider
+
+    settings.DISABLE_NEW_PAYPAL_PAYMENTS = False
+    assert event.get_payment_providers(cached=True, for_new_payment=True)[identifier] is provider
+
+
+@pytest.mark.parametrize('identifier', ['paypal', 'stripe_paypal'])
+def test_new_payment_api_rejects_retired_method(settings, identifier):
+    settings.DISABLE_NEW_PAYPAL_PAYMENTS = True
+    serializer = OrderPaymentCreateSerializer()
+    with pytest.raises(ValidationError, match='unavailable'):
+        serializer.validate_provider(identifier)
+    assert serializer.validate_provider('stripe') == 'stripe'
+
+    settings.DISABLE_NEW_PAYPAL_PAYMENTS = False
+    assert serializer.validate_provider(identifier) == identifier

@@ -54,7 +54,7 @@ from eventyay.common.language import LANGUAGE_NAMES
 from eventyay.common.text.path import path_with_hash, resolve_media_path as _resolve_media_path
 from eventyay.common.text.phrases import phrases
 from eventyay.common.urls import EventUrls, is_http_url
-from eventyay.consts import TIMEZONE_CHOICES
+from eventyay.consts import PAYPAL_PROVIDER_IDENTIFIERS, TIMEZONE_CHOICES
 from eventyay.core.permissions import (
     MAX_PERMISSIONS_IF_SILENCED,
     ORGANIZER_ROLES,
@@ -2094,7 +2094,7 @@ class Event(
             if has_channel:
                 Channel.objects.create(room=r, event=self)
 
-    def get_payment_providers(self, cached=False) -> dict:
+    def get_payment_providers(self, cached=False, *, for_new_payment=False) -> dict:
         """
         Returns a dictionary of initialized payment providers mapped by their identifiers.
         """
@@ -2122,6 +2122,11 @@ class Event(
                     key=lambda v: (-v[1].priority, str(v[1].verbose_name)),
                 )
             )
+        if for_new_payment and settings.DISABLE_NEW_PAYPAL_PAYMENTS:
+            return {
+                identifier: provider for identifier, provider in self._cached_payment_providers.items()
+                if identifier not in PAYPAL_PROVIDER_IDENTIFIERS
+            }
         return self._cached_payment_providers
 
     def get_html_mail_renderer(self):
@@ -2276,7 +2281,7 @@ class Event(
     @property
     def has_payment_provider(self):
         result = False
-        for provider in self.get_payment_providers().values():
+        for provider in self.get_payment_providers(for_new_payment=True).values():
             if provider.is_enabled and provider.identifier not in (
                 'free',
                 'boxoffice',
